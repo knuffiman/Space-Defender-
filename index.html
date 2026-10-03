@@ -1,22 +1,33 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cut">
 <title>Space Defender 3D</title>
+<meta name="description" content="Space Defender 3D – kostenloses 3D-Weltraum-Shooter-Browserspiel. Fliege frei durchs All, waehle aus 13 Raumschiffen, kaempfe mit Fluegelmaennern gegen Alien-Flotten und Bosse. Ohne Download, direkt im Browser.">
+<meta name="keywords" content="Space Defender 3D, Weltraum Spiel, Browserspiel, 3D Shooter, Raumschiff Spiel, kostenlos, online spielen">
+<meta property="og:title" content="Space Defender 3D">
+<meta property="og:description" content="Freier 3D-Weltraum-Shooter im Browser: 13 Schiffe, Alien-Flotten, Bosse.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#06010f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Audiowide&family=Chakra+Petch:wght@400;600;700&display=swap">
 <style>
-/* Layout: Vollbild-WebGL-Szene, darueber eine duenne HUD-Leiste und zentrierte Panels fuer Start/Pause/Game Over.
-   Bewusst nur ein (dunkles) Arcade-Theme. */
 :root{
   --bg:#06010f; --ink:#ecf6ff; --dim:#9b9cc4; --cyan:#3ee6ff; --mag:#ff47b8; --amber:#ffc53d; --red:#ff4d5e; --green:#4dff8a;
-  --panel:rgba(14,4,32,.86); --line:rgba(62,230,255,.35);
+  --panel:rgba(14,4,32,.88); --line:rgba(62,230,255,.35);
   --display:'Audiowide','Trebuchet MS',system-ui,sans-serif;
   --body:'Chakra Petch','Segoe UI',system-ui,sans-serif;
   color-scheme:dark;
 }
 [hidden]{display:none!important}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;touch-action:none}
 #game{position:fixed;inset:0}
 #game canvas{display:block;width:100%;height:100%}
+body.playing #game canvas{cursor:none}
+#overlay{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
 .hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:16px;right:16px;display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;pointer-events:none;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .hud b{font-family:var(--display);font-weight:400;color:var(--ink);font-size:20px;letter-spacing:.04em;font-variant-numeric:tabular-nums;margin-left:6px}
 .stat{display:flex;align-items:baseline}
@@ -30,23 +41,26 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 .chip{padding:3px 8px;border-radius:4px;border:1px solid currentColor;font-size:11px;font-weight:700;position:relative;overflow:hidden}
 .chip em{position:absolute;left:0;bottom:0;height:2px;background:currentColor;font-style:normal}
 .hi{margin-left:auto}
-#bossbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 56px);width:min(420px,calc(100% - 32px));display:grid;gap:4px;text-align:center;pointer-events:none;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mag)}
+#radar{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:170px;height:170px;pointer-events:none}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);pointer-events:none;text-align:center;transition:opacity 1s;max-width:calc(100% - 400px)}
+#bossbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 60px);width:min(420px,calc(100% - 32px));display:grid;gap:4px;text-align:center;pointer-events:none;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mag)}
 #bossbar div{height:8px;border:1px solid var(--mag);border-radius:4px;overflow:hidden}
 #bossbar i{display:block;height:100%;background:var(--mag)}
 #vignette{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 160px 40px var(--red);opacity:0;transition:opacity .25s}
-#banner{position:fixed;left:16px;right:16px;top:28%;text-align:center;font-family:var(--display);font-size:clamp(28px,7vw,64px);letter-spacing:.06em;color:var(--ink);text-shadow:0 0 18px var(--cyan),0 0 40px var(--mag);opacity:0;transition:opacity .3s;pointer-events:none}
-.screen{position:fixed;inset:0;display:grid;place-items:center;padding:16px;overflow-y:auto;background:radial-gradient(ellipse at center,rgba(6,1,15,.25),rgba(6,1,15,.8))}
-.panel{max-width:680px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px 22px;display:grid;gap:14px;text-align:center;box-shadow:0 0 60px rgba(255,71,184,.18)}
+#banner{position:fixed;left:16px;right:16px;top:24%;text-align:center;font-family:var(--display);font-size:clamp(26px,6vw,58px);letter-spacing:.06em;color:var(--ink);text-shadow:0 0 18px var(--cyan),0 0 40px var(--mag);opacity:0;transition:opacity .3s;pointer-events:none}
+.screen{position:fixed;inset:0;display:grid;place-items:center;padding:16px;overflow-y:auto;background:radial-gradient(ellipse at center,rgba(6,1,15,.2),rgba(6,1,15,.82))}
+.panel{max-width:760px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 20px;display:grid;gap:13px;text-align:center;box-shadow:0 0 60px rgba(255,71,184,.18)}
 .panel h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(30px,8vw,54px);line-height:1;letter-spacing:.04em;text-wrap:balance;background:linear-gradient(180deg,#fff 20%,var(--cyan) 55%,var(--mag));-webkit-background-clip:text;background-clip:text;color:transparent}
 .panel p{margin:0;color:var(--dim);line-height:1.5}
 .label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan)}
-.ships{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
-.ships button{font-family:var(--body);color:var(--ink);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px 6px;cursor:pointer;display:grid;gap:2px}
+.ships{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:7px}
+.ships button{font-family:var(--body);color:var(--ink);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:7px 6px;cursor:pointer;display:grid;gap:2px}
 .ships button b{font-family:var(--display);font-weight:400;font-size:14px}
 .ships button span{font-size:11px;color:var(--dim);line-height:1.3}
+.ships button small{font-size:10px;color:var(--cyan);letter-spacing:.04em;font-variant-numeric:tabular-nums}
 .ships button[aria-pressed="true"]{border-color:var(--amber);background:rgba(255,197,61,.12)}
 .ships button:focus-visible,button.go:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
-.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;text-align:left;justify-self:center;font-size:14px}
+.keys{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:5px 12px;text-align:left;justify-self:center;font-size:13px}
 .keys kbd{font-family:var(--body);font-weight:700;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:1px 7px;justify-self:end;white-space:nowrap}
 .pus{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 10px}
 .pu{display:flex;align-items:center;gap:5px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
@@ -54,21 +68,30 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 .warn{color:var(--red)!important;font-weight:600}
 button.go{justify-self:center;font-family:var(--display);font-size:18px;letter-spacing:.08em;color:#06010f;background:var(--amber);border:0;border-radius:6px;padding:12px 26px;cursor:pointer}
 .big{font-family:var(--display);font-size:40px;color:var(--ink);font-variant-numeric:tabular-nums}
-#touchShield{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:76px;height:76px;border-radius:50%;border:2px solid var(--cyan);background:rgba(62,230,255,.12);color:var(--cyan);font-family:var(--display);font-size:11px}
-@media (max-width:640px){.hud{font-size:11px;gap:6px 14px}.hud b{font-size:16px}.bar{width:90px}.hi{margin-left:0}.keys{font-size:12px}}
+.tbtn{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:76px;height:76px;border-radius:50%;border:2px solid var(--cyan);background:rgba(62,230,255,.12);color:var(--cyan);font-family:var(--display);font-size:11px}
+#touchShield{right:16px}
+#touchBoost{right:104px;border-color:var(--amber);color:var(--amber);background:rgba(255,197,61,.12)}
+@media (max-width:760px){.hud{font-size:11px;gap:6px 14px}.hud b{font-size:16px}.bar{width:90px}.hi{margin-left:0}.keys{font-size:12px;grid-template-columns:auto 1fr}#radar{width:120px;height:120px}#hint{display:none}}
 @media (prefers-reduced-motion:reduce){#banner,#vignette,.bar i{transition:none}}
 </style>
-
+</head>
+<body>
 <div id="game"></div>
+<canvas id="overlay"></canvas>
 
 <div class="hud" aria-live="off">
   <div class="stat">Punkte<b id="hScore">0</b></div>
   <div class="stat">Level<b id="hLevel">1</b></div>
+  <div class="stat">Ziel<b id="hGoal">0/0</b></div>
   <div class="energy">Energie<div class="bar"><i id="hEnergy"></i></div></div>
   <div class="lives" id="hLives"></div>
+  <div class="stat">Tempo<b id="hSpd">0</b></div>
+  <div class="stat">Fluegel<b id="hAllies">0</b></div>
   <div class="chips" id="hChips"></div>
   <div class="stat hi">Highscore<b id="hHi">0</b></div>
 </div>
+<canvas id="radar" width="340" height="340"></canvas>
+<div id="hint">Maus = lenken · Klick / Leertaste = Feuer · W / S = Schub · A / D = rollen · Shift = Schild</div>
 <div id="bossbar" hidden><span id="bossName">Boss</span><div><i id="bossHp"></i></div></div>
 <div id="vignette"></div>
 <div id="banner"></div>
@@ -76,15 +99,18 @@ button.go{justify-self:center;font-family:var(--display);font-size:18px;letter-s
 <div class="screen" id="scrStart">
   <div class="panel">
     <h1>Space Defender 3D</h1>
-    <p>Schiess die Aliens ab, bevor sie dich erreichen. Jedes Alien, das durchkommt, kostet Energie. Alle fuenf Level wartet ein anderer Boss.</p>
+    <p>Freier Flug durch den Weltraum: Alien-Flotten greifen aus allen Richtungen an. Zerstoere genug Gegner, um das Level zu schaffen – alle fuenf Level wartet ein Boss. Deine Fluegelmaenner kaempfen an deiner Seite.</p>
     <div class="label">Waehle dein Schiff</div>
     <div class="ships" id="shipPick"></div>
     <div class="keys">
-      <kbd>Pfeile / WASD</kbd><span>fliegen</span>
-      <kbd>Leertaste</kbd><span>Feuer</span>
-      <kbd>Shift</kbd><span>Schild (kostet Energie, macht langsam)</span>
-      <kbd>P</kbd><span>Pause</span>
-      <kbd>Touch</kbd><span>ziehen = fliegen, feuert automatisch</span>
+      <kbd>Maus / Pfeile</kbd><span>lenken</span>
+      <kbd>Klick / Leertaste</kbd><span>Feuer</span>
+      <kbd>W / S</kbd><span>Boost / Bremsen</span>
+      <kbd>A / D</kbd><span>rollen</span>
+      <kbd>Shift</kbd><span>Schild</span>
+      <kbd>M</kbd><span>Maussteuerung an/aus</span>
+      <kbd>P / Esc</kbd><span>Pause</span>
+      <kbd>Touch</kbd><span>ziehen = lenken, feuert auto.</span>
     </div>
     <div class="pus" id="puLegend"></div>
     <p class="warn">Achtung: Schild + PowerUp = Explosion!</p>
@@ -102,7 +128,8 @@ button.go{justify-self:center;font-family:var(--display);font-size:18px;letter-s
     <button class="go" id="btnAgain">Neues Spiel (Enter)</button>
   </div>
 </div>
-<button id="touchShield" hidden>SCHILD</button>
+<button class="tbtn" id="touchBoost" hidden>BOOST</button>
+<button class="tbtn" id="touchShield" hidden>SCHILD</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -113,6 +140,8 @@ const $ = id => document.getElementById(id);
 const rnd = (a,b) => a + Math.random()*(b-a);
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const V = (x,y,z) => new T.Vector3(x||0,y||0,z||0);
+function randUnit(){ const u=rnd(-1,1), a=rnd(0,TAU), s=Math.sqrt(1-u*u); return V(Math.cos(a)*s, u, Math.sin(a)*s); }
 
 // =====================================================================
 // GRAFIK-HELFER
@@ -134,10 +163,24 @@ function lumpy(geo, amp, f){
     v.multiplyScalar(n); p.setXYZ(i,v.x,v.y,v.z); }
   geo.computeVertexNormals(); return geo;
 }
+// Geteilte Materialien fuer Schuesse (werden nie entsorgt)
+const sprCache = {}, matCache = {};
+function sharedGlow(color, size, op){
+  const k = color+'_'+op; let mat = sprCache[k];
+  if(!mat){ mat = sprCache[k] = new T.SpriteMaterial({map:glowTex,color,transparent:true,opacity:op,blending:T.AdditiveBlending,depthWrite:false}); mat.userData.keep = true; }
+  const s = new T.Sprite(mat); s.scale.set(size,size,1); return s;
+}
+function sharedBasic(color){ let m = matCache[color]; if(!m){ m = matCache[color] = basic(color); m.userData.keep = true; } return m; }
+function disposeObj(o){
+  o.traverse(c => {
+    if(c.geometry && !c.isSprite && !c.geometry.userData.keep) c.geometry.dispose();
+    if(c.material){ (Array.isArray(c.material)?c.material:[c.material]).forEach(m => { if(!m.userData.keep) m.dispose(); }); }
+  });
+}
 
 // =====================================================================
-// ASSET-BIBLIOTHEK  (gleiche Modelle wie im Hangar)
-// Jede Funktion baut in Gruppe g und gibt optional update(t) zurueck.
+// ASSET-BIBLIOTHEK
+// Schiffe zeigen nach -Z, Aliens nach +Z. Jede Funktion baut in Gruppe g und gibt optional update(t) zurueck.
 // =====================================================================
 const MODEL = {
   // ---------- Schiffe ----------
@@ -309,6 +352,98 @@ const MODEL = {
     for(let i=0;i<6;i++){ const a=i/6*TAU; addGlow(r,0xffc53d,1,1,Math.cos(a)*3,Math.sin(a)*3,.4); }
     return t=>{inner.rotation.z=-t*2; r.rotation.z=t*.3;};
   }
+  ,
+  // ---------- Neue Spielerschiffe ----------
+  viper(g){
+    add(g,new T.ConeGeometry(.55,5,4),std(0x2a2f3a)).rotation.x=-Math.PI/2;
+    mirror(s=>{ const w=add(g,new T.BoxGeometry(2.4,.1,1.8),std(0x29e07a,0x0a5020,.4),s*1.3,0,.9); w.rotation.y=s*-.6; addGlow(g,0x4dff8a,.7,1,s*2.4,0,1.6); });
+    add(g,new T.SphereGeometry(.3,10,8),std(0x9affc8,0x20ff80,.8),0,.28,-.6).scale.z=2;
+    const fl=addGlow(g,0x4dff8a,2,1,0,0,2.6);
+    return t=>{const k=1.8+.4*Math.sin(t*32); fl.scale.set(k,k,1);};
+  },
+  hornet(g){
+    add(g,new T.SphereGeometry(.8,12,10),std(0xffd23d,0x403000)).scale.z=1.8;
+    for(let i=0;i<4;i++){ const p=new T.Group(); p.rotation.z=i*Math.PI/2+Math.PI/4; g.add(p); add(p,new T.BoxGeometry(.12,1.8,1),std(0x1a1a1a),0,1,.6); addGlow(p,0xffc53d,.5,1,0,1.9,.6); }
+    add(g,new T.SphereGeometry(.35,10,8),std(0x18c8ff,0x0aa8ff,.9),0,.35,-.9);
+    const fl=addGlow(g,0xffa040,1.6,1,0,0,1.6);
+    return t=>{const k=1.3+.3*Math.sin(t*40); fl.scale.set(k,k,1);};
+  },
+  corsair(g){
+    const fl=[]; mirror(s=>{ add(g,new T.CylinderGeometry(.45,.6,4.4,8),std(0x8a3030),s*1.2,0,0).rotation.x=Math.PI/2;
+      add(g,new T.ConeGeometry(.45,1,8),std(0xd8c070,0,1,{metalness:.7}),s*1.2,0,-2.7).rotation.x=-Math.PI/2; fl.push(addGlow(g,0xff5a3a,1.6,1,s*1.2,0,2.4)); });
+    add(g,new T.BoxGeometry(2.4,.25,1.6),std(0x5a2020),0,0,.2);
+    add(g,new T.SphereGeometry(.45,12,8),std(0xffb030,0xff7a00,.7),0,.35,-.2).scale.z=1.5;
+    return t=>fl.forEach((f,i)=>{const k=1.4+.4*Math.sin(t*26+i*2); f.scale.set(k,k,1);});
+  },
+  titan(g){
+    add(g,new T.BoxGeometry(2.8,1.6,5.4),std(0x6a7088));
+    add(g,new T.BoxGeometry(1.6,.9,2),std(0x8890a8),0,1.1,.6);
+    add(g,new T.BoxGeometry(.9,.5,.5),std(0x2bc0ff,0x0880c0,.8),0,1.2,-.4);
+    add(g,new T.CylinderGeometry(.35,.35,2.4,8),std(0x30303a),0,-.3,-3.4).rotation.x=Math.PI/2;
+    addGlow(g,0xb066ff,1.4,1,0,-.3,-4.6);
+    const fl=[]; mirror(s=>{ add(g,new T.BoxGeometry(1.2,2.6,3),std(0x4a4f66),s*2,0,.8); fl.push(addGlow(g,0x8ad8ff,2.4,1,s*2,0,2.5)); });
+    return t=>fl.forEach((f,i)=>{const k=2.2+.3*Math.sin(t*20+i); f.scale.set(k,k,1);});
+  },
+  wraith(g){
+    const sh=new T.Shape(); sh.moveTo(0,-2.4); sh.quadraticCurveTo(3.4,0,3,2); sh.quadraticCurveTo(1.4,.6,0,1.2); sh.quadraticCurveTo(-1.4,.6,-3,2); sh.quadraticCurveTo(-3.4,0,0,-2.4);
+    const m=add(g,new T.ExtrudeGeometry(sh,{depth:.3,bevelEnabled:false}),std(0x2a0a3a,0x200030,1,{metalness:.8,roughness:.2})); m.rotation.x=Math.PI/2; m.position.y=.15;
+    const ey=addGlow(g,0xff47b8,1.4,1,0,.4,-1); addGlow(g,0xff47b8,2.6,.8,0,0,1.4);
+    return t=>{ey.material.opacity=.5+.5*Math.sin(t*4);};
+  },
+  nova(g){
+    add(g,new T.ConeGeometry(.7,4,8),std(0xf0f0ff)).rotation.x=-Math.PI/2;
+    const r=add(g,new T.TorusGeometry(2,.15,6,32),std(0x2de0c8,0x10a090,.8),0,0,1);
+    for(let i=0;i<3;i++){ const a=i/3*TAU; add(g,new T.BoxGeometry(.1,2,.6),std(0xc0c8e0),Math.cos(a),Math.sin(a),1).rotation.z=a-Math.PI/2; }
+    const fl=addGlow(g,0x2de0c8,2.2,1,0,0,2.2);
+    return t=>{r.rotation.z=t; const k=1.8+.4*Math.sin(t*30); fl.scale.set(k,k,1);};
+  },
+  lancer(g){
+    add(g,new T.CylinderGeometry(.18,.5,6.5,6),std(0xd0d8e8)).rotation.x=-Math.PI/2;
+    add(g,new T.BoxGeometry(3.6,.12,1.2),std(0x3060c0),0,0,1.6);
+    mirror(s=>add(g,new T.BoxGeometry(.12,1.4,1),std(0x3060c0),s*1.8,.5,1.8));
+    add(g,new T.SphereGeometry(.38,10,8),std(0x8ad8ff,0x3ee6ff,.9),0,.35,.4).scale.z=1.6;
+    const tip=addGlow(g,0x3ee6ff,1,1,0,0,-3.3); addGlow(g,0x8ad8ff,2,1,0,0,3.3);
+    return t=>{const k=.8+.5*Math.abs(Math.sin(t*3)); tip.scale.set(k,k,1);};
+  },
+  starling(g){
+    const sh=new T.Shape(); sh.moveTo(0,-2.2); sh.lineTo(2,1.6); sh.lineTo(0,1); sh.lineTo(-2,1.6); sh.closePath();
+    const m=add(g,new T.ExtrudeGeometry(sh,{depth:.4,bevelEnabled:true,bevelSize:.1,bevelThickness:.1,bevelSegments:1}),std(0xe8e8f0)); m.rotation.x=Math.PI/2; m.position.y=.2;
+    add(g,new T.SphereGeometry(.35,10,8),std(0xff47b8,0xff2080,.8),0,.45,-.4).scale.z=1.6;
+    mirror(s=>add(g,new T.BoxGeometry(.1,.9,.9),std(0xff47b8),s*1.2,.6,1.1));
+    const fl=addGlow(g,0xff8ac8,1.8,1,0,0,1.6);
+    return t=>{const k=1.4+.4*Math.sin(t*30); fl.scale.set(k,k,1);};
+  },
+  // ---------- Neue Gegnerschiffe (Front nach -Z) ----------
+  dart(g){
+    add(g,new T.ConeGeometry(.6,3.6,3),std(0x8a1020,0x300008)).rotation.x=-Math.PI/2;
+    mirror(s=>{ const w=add(g,new T.BoxGeometry(.1,2.2,1.6),std(0x501018),s*.9,0,.6); w.rotation.z=s*.6; addGlow(g,0xff3355,.7,1,s*1.5,.8,.6); });
+    addGlow(g,0xff3355,1.8,1,0,0,1.9);
+  },
+  gunship(g){
+    add(g,new T.BoxGeometry(2.4,1.2,3.6),std(0x3a4a2a,0x0a1000));
+    mirror(s=>{ add(g,new T.CylinderGeometry(.22,.22,2.4,6),std(0x222228),s*1.5,0,-1.4).rotation.x=Math.PI/2; addGlow(g,0xffc53d,.8,1,s*1.5,0,-2.7); });
+    add(g,new T.SphereGeometry(.5,10,8),std(0xff4d5e,0xff1030,1),0,.7,-.6);
+    addGlow(g,0xff8a20,2.4,.9,0,0,2);
+  },
+  drone(g){
+    add(g,new T.IcosahedronGeometry(.7,0),std(0x9aa0b8,0x101020));
+    const r=add(g,new T.TorusGeometry(1.1,.1,6,20),std(0xff3355,0xff1030,1)); addGlow(g,0xff3355,2.2,.6);
+    return t=>{r.rotation.x=t*4; r.rotation.y=t*3;};
+  },
+  raider(g){
+    add(g,new T.BoxGeometry(.9,.9,3.6),std(0x5a2a8a,0x100020));
+    add(g,new T.ConeGeometry(.5,1.2,4),std(0x8a4ac0)).rotation.x=-Math.PI/2;
+    g.children[1].position.z=-2.3;
+    for(let i=0;i<4;i++){ const p=new T.Group(); p.rotation.z=Math.PI/4+i*Math.PI/2; g.add(p); add(p,new T.BoxGeometry(.1,2.4,1.2),std(0x3a1a5a),0,1.4,.8); addGlow(p,0xff47b8,.7,1,0,2.6,.2); }
+    addGlow(g,0xb066ff,2,1,0,0,2);
+  },
+  carrier(g){
+    add(g,new T.BoxGeometry(5,2,12),std(0x4a4f66,0x0a0a14));
+    add(g,new T.BoxGeometry(2,1.6,3),std(0x6a7088),0,1.8,2);
+    add(g,new T.BoxGeometry(3.6,1.4,.3),std(0x101018),0,0,-6.1);
+    addGlow(g,0xff3355,4,.8,0,0,-6.4);
+    mirror(s=>{ for(let i=0;i<4;i++) addGlow(g,0xffe066,.6,1,s*2.55,.4,-4+i*2.6); addGlow(g,0x8ad8ff,4,1,s*1.6,0,6.4); });
+  }
 };
 function build(name){ const g=new T.Group(); const upd=MODEL[name](g)||null; return {g, upd}; }
 
@@ -316,11 +451,19 @@ function build(name){ const g=new T.Group(); const upd=MODEL[name](g)||null; ret
 // SPIELDATEN
 // =====================================================================
 const SHIPS = {
-  interceptor:{name:'Interceptor', info:'Ausgewogen. Einzel-Laser.', speed:18, energy:100, shieldR:2.9, drain:16, regen:1.5, fire:'laser'},
-  falke:      {name:'Falke', info:'Schnell, Doppel-Laser, wenig Energie.', speed:22, energy:80, shieldR:2.9, drain:16, regen:1.5, fire:'double'},
-  bomber:     {name:'Bomber', info:'Langsam, viel Energie, schwere Schuesse.', speed:13, energy:150, shieldR:3.6, drain:16, regen:1.5, fire:'heavy'},
-  phantom:    {name:'Phantom', info:'Schild kostet nur die Haelfte.', speed:19, energy:90, shieldR:2.9, drain:8, regen:1.5, fire:'laser'},
-  aegis:      {name:'Aegis', info:'Grosses Schild, Energie laedt doppelt.', speed:12, energy:130, shieldR:4.2, drain:14, regen:3.2, fire:'laser'}
+  interceptor:{name:'Interceptor', info:'Ausgewogen, Einzel-Laser.',           speed:34, turn:1.7, energy:100, shieldR:2.9, drain:16, regen:2,   fire:'laser'},
+  falke:      {name:'Falke',       info:'Schnell, Doppel-Laser, wenig Energie.',speed:42, turn:1.9, energy:80,  shieldR:2.9, drain:16, regen:2,   fire:'double'},
+  bomber:     {name:'Bomber',      info:'Traege, viel Energie, schwere Schuesse.',speed:27,turn:1.2, energy:150, shieldR:3.6, drain:16, regen:2,   fire:'heavy'},
+  phantom:    {name:'Phantom',     info:'Schild kostet nur die Haelfte.',       speed:36, turn:1.8, energy:90,  shieldR:2.9, drain:8,  regen:2,   fire:'laser'},
+  aegis:      {name:'Aegis',       info:'Riesen-Schild, Energie laedt doppelt.',speed:26, turn:1.2, energy:130, shieldR:4.2, drain:14, regen:4,   fire:'laser'},
+  viper:      {name:'Viper',       info:'Extrem wendig, Schnellfeuer.',         speed:38, turn:2.4, energy:85,  shieldR:2.7, drain:16, regen:2,   fire:'rapid'},
+  hornet:     {name:'Hornet',      info:'Winzig, rasend schnell, MG.',          speed:46, turn:2.2, energy:65,  shieldR:2.4, drain:14, regen:2.5, fire:'mg'},
+  corsair:    {name:'Korsar',      info:'Zwillingsrumpf, Dreifach-Laser.',      speed:32, turn:1.5, energy:110, shieldR:3.2, drain:16, regen:2,   fire:'triple'},
+  titan:      {name:'Titan',       info:'Fliegende Festung, Plasmakanone.',     speed:22, turn:1.0, energy:200, shieldR:4.4, drain:18, regen:2.5, fire:'cannon'},
+  wraith:     {name:'Wraith',      info:'Laedt Energie extrem schnell.',        speed:38, turn:1.8, energy:90,  shieldR:2.9, drain:16, regen:6,   fire:'double'},
+  nova:       {name:'Nova',        info:'Streufeuer als Standardwaffe.',        speed:32, turn:1.6, energy:100, shieldR:3.2, drain:16, regen:2,   fire:'spread3'},
+  lancer:     {name:'Lanze',       info:'Railgun durchschlaegt alles.',         speed:34, turn:1.5, energy:95,  shieldR:2.9, drain:16, regen:2,   fire:'rail'},
+  starling:   {name:'Starling',    info:'Feuert kleine Lenkraketen.',           speed:36, turn:1.8, energy:100, shieldR:2.9, drain:16, regen:2,   fire:'seeker'}
 };
 const PU = {
   energy: {label:'+',  name:'Energie',         color:0x4dff8a},
@@ -333,31 +476,37 @@ const PU = {
   x2:     {label:'x2', name:'Punkte x2',       color:0xb066ff},
   life:   {label:'1UP',name:'Extra-Leben',     color:0xff6aa8},
   slow:   {label:'Z',  name:'Zeitlupe',        color:0x8ad8ff},
-  magnet: {label:'M',  name:'Magnet',          color:0xe0e0ff}
+  magnet: {label:'M',  name:'Magnet',          color:0xe0e0ff},
+  wing:   {label:'W',  name:'Fluegelmann',     color:0x7dffb0}
 };
 Object.values(PU).forEach(p => p.css = '#' + p.color.toString(16).padStart(6,'0'));
-const WEAPONS = ['mg','spread','rocket','plasma'];
-const PU_POOL = ['energy','energy','energy','mg','mg','spread','spread','rocket','rocket','plasma','inv','bomb','x2','life','slow','slow','magnet','magnet'];
-// Gegnertypen: pen = Energie-Strafe, wenn er durchkommt
+const PU_POOL = ['energy','energy','energy','mg','mg','spread','spread','rocket','rocket','plasma','inv','bomb','x2','life','slow','magnet','magnet','wing','wing'];
+// ai: chase = jagt und dreht ab, gun = haelt Abstand und feuert, mine, rock, boss
+// face: 1 = Front +Z, -1 = Front -Z (Schiffsmodelle), fehlt = nicht ausrichten
 const TYPES = {
-  saucer: {hp:10, pts:10, r:2.2, speed:26, dmg:20, pen:6},
-  hunter: {hp:10, pts:20, r:1.9, speed:22, dmg:20, pen:6},
-  zig:    {hp:10, pts:15, r:1.8, speed:30, dmg:15, pen:6},
-  tank:   {hp:45, pts:45, r:2.7, speed:15, dmg:40, pen:10},
-  jelly:  {hp:20, pts:30, r:2.0, speed:13, dmg:15, pen:6},
-  crystal:{hp:15, pts:25, r:2.0, speed:22, dmg:20, pen:6},
-  shard:  {hp:4,  pts:5,  r:1.1, speed:34, dmg:8,  pen:2},
-  bee:    {hp:4,  pts:5,  r:1.3, speed:34, dmg:8,  pen:2, scale:.65},
-  miner:  {hp:25, pts:35, r:2.0, speed:16, dmg:20, pen:6},
-  spider: {hp:18, pts:25, r:1.8, speed:20, dmg:20, pen:6, scale:1.3},
-  mine:   {hp:6,  pts:5,  r:1.3, speed:0,  dmg:25, pen:0},
-  asteroid:{hp:30,pts:15, r:2.3, speed:24, dmg:30, pen:0},
-  ice:    {hp:20, pts:10, r:2.1, speed:24, dmg:25, pen:0},
-  ore:    {hp:40, pts:50, r:2.0, speed:24, dmg:30, pen:0},
-  mothership:{hp:420, pts:600, r:7,   speed:14, dmg:35, boss:'Mutterschiff'},
-  worm:      {hp:500, pts:800, r:3.2, speed:14, dmg:35, boss:'Sternenwurm', scale:2},
-  eye:       {hp:450, pts:700, r:5,   speed:14, dmg:35, boss:'Das Auge', scale:1.6},
-  fortress:  {hp:650, pts:1000,r:6,   speed:14, dmg:35, boss:'Festung', scale:1.6}
+  saucer: {hp:10, pts:10, r:2.2, speed:24, turn:1.4, dmg:20, ai:'chase', shoot:3.4, foe:1},
+  dart:   {hp:8,  pts:15, r:1.8, speed:38, turn:2.2, dmg:18, ai:'chase', shoot:1.9, face:-1, foe:1},
+  drone:  {hp:5,  pts:8,  r:1.4, speed:32, turn:2.6, dmg:12, ai:'chase', shoot:3.2, foe:1},
+  hunter: {hp:12, pts:20, r:1.9, speed:30, turn:2,   dmg:20, ai:'chase', shoot:2.2, face:1, foe:1},
+  zig:    {hp:10, pts:15, r:1.8, speed:34, turn:2.4, dmg:15, ai:'chase', wobble:1, foe:1},
+  bee:    {hp:4,  pts:5,  r:1.3, speed:36, turn:2.8, dmg:8,  ai:'chase', face:1, scale:.65, foe:1},
+  raider: {hp:16, pts:30, r:2.0, speed:32, turn:1.8, dmg:20, ai:'chase', shoot:1.1, face:-1, foe:1},
+  crystal:{hp:15, pts:25, r:2.0, speed:24, turn:1.4, dmg:20, ai:'chase', shoot:2.6, foe:1},
+  shard:  {hp:4,  pts:5,  r:1.1, speed:38, turn:3,   dmg:8,  ai:'chase', foe:1},
+  spider: {hp:18, pts:25, r:1.8, speed:28, turn:2,   dmg:22, ai:'chase', face:1, scale:1.3, lunge:1, foe:1},
+  jelly:  {hp:20, pts:30, r:2.0, speed:18, turn:1,   dmg:15, ai:'chase', foe:1},
+  tank:   {hp:45, pts:45, r:2.7, speed:14, turn:.8,  dmg:40, ai:'gun', shoot:2.2, face:1, foe:1},
+  gunship:{hp:40, pts:50, r:2.6, speed:20, turn:1,   dmg:30, ai:'gun', shoot:.9, face:-1, burst:3, foe:1},
+  miner:  {hp:25, pts:35, r:2.0, speed:18, turn:1,   dmg:20, ai:'gun', mines:1, foe:1},
+  carrier:{hp:160,pts:150,r:6.5, speed:10, turn:.5,  dmg:50, ai:'gun', shoot:2.5, face:-1, launch:1, foe:1, far:1},
+  mine:   {hp:6,  pts:5,  r:1.3, speed:0,  dmg:25, ai:'mine'},
+  asteroid:{hp:30,pts:15, r:2.3, dmg:30, ai:'rock', rock:1},
+  ice:    {hp:20, pts:10, r:2.1, dmg:25, ai:'rock', rock:1},
+  ore:    {hp:40, pts:50, r:2.0, dmg:30, ai:'rock', rock:1},
+  mothership:{hp:420, pts:600, r:7,   speed:14, dmg:35, ai:'boss', boss:'Mutterschiff', face:1},
+  worm:      {hp:500, pts:800, r:3.2, speed:14, dmg:35, ai:'boss', boss:'Sternenwurm', scale:2, face:1},
+  eye:       {hp:450, pts:700, r:5,   speed:14, dmg:35, ai:'boss', boss:'Das Auge', scale:1.6, face:1},
+  fortress:  {hp:650, pts:1000,r:6,   speed:14, dmg:35, ai:'boss', boss:'Festung', scale:1.6}
 };
 const BOSS_ORDER = ['mothership','worm','eye','fortress'];
 
@@ -368,52 +517,71 @@ const renderer = new T.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 $('game').appendChild(renderer.domElement);
 const scene = new T.Scene();
-scene.background = new T.Color(0x07010f);
-scene.fog = new T.Fog(0x16032a, 70, 330);
-const camera = new T.PerspectiveCamera(65, 1, 0.1, 1200);
-function resize(){ const w=innerWidth, h=innerHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.fov=w<h?85:65; camera.updateProjectionMatrix(); }
+scene.background = new T.Color(0x05010c);
+scene.fog = new T.Fog(0x0a0218, 260, 900);
+const camera = new T.PerspectiveCamera(68, 1, 0.1, 3000);
+scene.add(camera);
+const overlay = $('overlay'), octx = overlay.getContext('2d');
+const radar = $('radar'), rctx = radar.getContext('2d');
+let DPR = 1;
+function resize(){
+  const w=innerWidth, h=innerHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.fov=w<h?82:68; camera.updateProjectionMatrix();
+  DPR = Math.min(window.devicePixelRatio||1, 2); overlay.width=w*DPR; overlay.height=h*DPR;
+}
 addEventListener('resize', resize); resize();
-scene.add(new T.AmbientLight(0x7070b0, .75));
+scene.add(new T.AmbientLight(0x7070b0, .8));
 const dl = new T.DirectionalLight(0xffffff, .9); dl.position.set(6,12,10); scene.add(dl);
-const pl = new T.PointLight(0xff47b8, 1.2, 120); pl.position.set(0,20,-60); scene.add(pl);
+const dl2 = new T.DirectionalLight(0xff47b8, .45); dl2.position.set(-8,-6,-10); scene.add(dl2);
 
-// Himmel: Retro-Sonne und Ringplanet wechseln sich pro Level ab
-const sun = new T.Mesh(new T.PlaneGeometry(170,170), new T.MeshBasicMaterial({map:canvasTex(256,256,(g)=>{
+// Himmel: folgt der Kamera, wirkt dadurch unendlich weit weg
+const sky = new T.Group(); scene.add(sky);
+function starLayer(n, size, color){
+  const geo = new T.BufferGeometry(), pos = new Float32Array(n*3);
+  for(let i=0;i<n;i++){ const u=randUnit().multiplyScalar(rnd(900,1000)); pos[i*3]=u.x; pos[i*3+1]=u.y; pos[i*3+2]=u.z; }
+  geo.setAttribute('position', new T.BufferAttribute(pos,3));
+  sky.add(new T.Points(geo, new T.PointsMaterial({color, size, sizeAttenuation:false, fog:false, transparent:true, opacity:.9})));
+}
+starLayer(2600, 1.3, 0xdfe8ff); starLayer(400, 2.4, 0xfff0d8); starLayer(250, 2, 0x9fd8ff);
+[[0x7a2cff,1400,.16],[0xff47b8,1100,.12],[0x3ee6ff,1000,.1],[0x7a2cff,1200,.12],[0xff7a59,900,.1],[0x2de0c8,1000,.08]].forEach(([c,s,o])=>{
+  const g = glowSprite(c,s,o); g.material.fog=false; g.position.copy(randUnit().multiplyScalar(1100)); sky.add(g);
+});
+const sun = new T.Mesh(new T.PlaneGeometry(420,420), new T.MeshBasicMaterial({map:canvasTex(256,256,(g)=>{
   const gr=g.createLinearGradient(0,0,0,256); gr.addColorStop(0,'#ffe27a'); gr.addColorStop(.5,'#ff7a59'); gr.addColorStop(1,'#ff2fa8');
   g.fillStyle=gr; g.beginPath(); g.arc(128,128,124,0,TAU); g.fill(); g.globalCompositeOperation='destination-out';
   for(let i=0;i<9;i++) g.fillRect(0,140+i*13,256,2+i*.9); }), transparent:true, fog:false, depthWrite:false}));
-sun.position.set(0,38,-620); scene.add(sun);
-const sunGlow = glowSprite(0xff4fa0,420,.35); sunGlow.material.fog=false; sunGlow.position.set(0,38,-630); scene.add(sunGlow);
-const planet = build('ringplanet'); planet.g.scale.setScalar(22); planet.g.position.set(-60,70,-640); planet.g.visible=false; scene.add(planet.g);
+sun.position.set(0,250,-1150); sun.lookAt(0,0,0); sky.add(sun);
+const sunGlow = glowSprite(0xff4fa0,1700,.3); sunGlow.material.fog=false; sunGlow.position.set(0,250,-1170); sky.add(sunGlow);
+const planet = build('ringplanet'); planet.g.scale.setScalar(70); planet.g.position.set(-800,180,420); sky.add(planet.g);
+const planet2 = build('ringplanet'); planet2.g.scale.setScalar(30); planet2.g.position.set(650,-380,600); planet2.g.rotation.z=.8; sky.add(planet2.g);
 
-const grid = new T.GridHelper(700,70,0xff47b8,0x8a2bd0); grid.position.y=-6; grid.material.transparent=true; grid.material.opacity=.55; scene.add(grid);
-const floor = new T.Mesh(new T.PlaneGeometry(700,700), basic(0x0b0218)); floor.rotation.x=-Math.PI/2; floor.position.y=-6.05; scene.add(floor);
+// Weltraumstaub fuer Geschwindigkeitsgefuehl
+const DUST = 700, dustGeo = new T.BufferGeometry(), dustPos = new Float32Array(DUST*3);
+for(let i=0;i<DUST*3;i++) dustPos[i]=rnd(-70,70);
+dustGeo.setAttribute('position', new T.BufferAttribute(dustPos,3));
+scene.add(new T.Points(dustGeo, new T.PointsMaterial({color:0xa8c0ff, size:.28, transparent:true, opacity:.75})));
 
-const STARS = 1400, starGeo = new T.BufferGeometry(), starPos = new Float32Array(STARS*3);
-for(let i=0;i<STARS;i++){ starPos[i*3]=rnd(-250,250); starPos[i*3+1]=rnd(-4,160); starPos[i*3+2]=rnd(-600,20); }
-starGeo.setAttribute('position', new T.BufferAttribute(starPos,3));
-scene.add(new T.Points(starGeo, new T.PointsMaterial({color:0xdfe8ff, size:.9, fog:false})));
-
-// Warp-Streifen (bei Level-Up und Warp-Tor)
+// Warp-Streifen (in Kamerakoordinaten)
 const WARP_N = 160, warpPos = new Float32Array(WARP_N*6), warpGeo = new T.BufferGeometry();
 warpGeo.setAttribute('position', new T.BufferAttribute(warpPos,3));
 const warpLines = new T.LineSegments(warpGeo, new T.LineBasicMaterial({color:0xbfe8ff, transparent:true, opacity:0, fog:false}));
-const warpSt = []; for(let i=0;i<WARP_N;i++){ const a=rnd(0,TAU), r=rnd(4,30); warpSt.push([Math.cos(a)*r, Math.sin(a)*r+6, rnd(-200,10)]); }
-scene.add(warpLines);
+const warpSt = []; for(let i=0;i<WARP_N;i++){ const a=rnd(0,TAU), r=rnd(5,32); warpSt.push([Math.cos(a)*r, Math.sin(a)*r, rnd(-200,5)]); }
+warpLines.frustumCulled = false; camera.add(warpLines);
 
 // =====================================================================
 // RAUMSCHIFF
 // =====================================================================
 const ship = new T.Group(); scene.add(ship);
 const hull = new T.Group(); ship.add(hull);
-let shipUpd = null;
+let shipUpd = null, camDist = 13;
 const shield = new T.Mesh(new T.IcosahedronGeometry(2.9,1), basic(0x3ee6ff,{wireframe:true,transparent:true,opacity:.55,blending:T.AdditiveBlending,depthWrite:false}));
 shield.add(glowSprite(0x3ee6ff,7.5,.35)); shield.visible=false; ship.add(shield);
 const invAura = glowSprite(0xffd23d,6,.5); invAura.visible=false; ship.add(invAura);
 function buildShip(key){
-  while(hull.children.length) hull.remove(hull.children[0]);
+  while(hull.children.length){ const c=hull.children[0]; hull.remove(c); disposeObj(c); }
   const b = build(key); hull.add(b.g); shipUpd = b.upd;
   shield.scale.setScalar(SHIPS[key].shieldR/2.9);
+  const size = new T.Box3().setFromObject(b.g).getSize(V());
+  camDist = clamp(7 + size.length()*.9, 11, 18);
 }
 
 // =====================================================================
@@ -422,26 +590,44 @@ function buildShip(key){
 function load(k, d){ try { const v = localStorage.getItem(k); return v==null ? d : v; } catch(e){ return d; } }
 function save(k, v){ try { localStorage.setItem(k, String(v)); } catch(e){} }
 const S = {state:'start', score:0, level:1, lives:3, energy:100, maxEnergy:100, hi:+load('sd3d_hi',0)||0, shipKey:load('sd3d_ship','interceptor'),
-  weapon:'laser', weaponT:0, inv:0, x2:0, slow:0, magnet:0, jam:0, cool:0, shake:0, respawn:0, spawnT:0, puT:6, decoT:3, rockT:8, bossCount:0, bossLevel:0, warp:0, t:0};
+  weapon:'laser', weaponT:0, inv:0, x2:0, slow:0, magnet:0, jam:0, cool:0, shake:0, respawn:0, spawnT:0, puT:6, decoT:1, rockT:0,
+  bossCount:0, bossFight:false, lvlUpT:0, kills:0, goal:12, warp:0, t:0, spd:0, vel:V(), pitchV:0, yawV:0, rollV:0, boosting:false,
+  mouseSteer: load('sd3d_mouse','1')==='1', hintT:12};
 if(!SHIPS[S.shipKey]) S.shipKey = 'interceptor';
 buildShip(S.shipKey);
-const aliens=[], shots=[], enemyShots=[], pickups=[], particles=[], decos=[], effects=[];
+const aliens=[], shots=[], pickups=[], particles=[], decos=[], effects=[], allies=[];
 const keys = {};
 let gate = null;
+const PLAYER = {m:ship, vel:S.vel};
+const tmp = V(), tmp2 = V(), fwd = V(0,0,-1), prev = V(), invQ = new T.Quaternion();
+
+function removeFrom(arr, item, obj){ const i=arr.indexOf(item); if(i>=0) arr.splice(i,1); scene.remove(obj); disposeObj(obj); }
+const _d = V(), _c = V();
+function segHit(p0, p1, c, r){
+  _d.subVectors(p1,p0); const L2=_d.lengthSq();
+  let t = L2>0 ? _c.subVectors(c,p0).dot(_d)/L2 : 0; t = clamp(t,0,1);
+  _c.copy(p0).addScaledVector(_d,t); return _c.distanceToSquared(c) < r*r;
+}
+function spawnPoint(dmin, dmax, frontBias){
+  let dir = randUnit();
+  if(Math.random() < (frontBias==null?.6:frontBias)) dir = V(0,0,-1).applyQuaternion(ship.quaternion).addScaledVector(randUnit(), .7).normalize();
+  return ship.position.clone().addScaledVector(dir, rnd(dmin, dmax));
+}
 
 // ---------- Partikel & Effekte ----------
 function burst(pos, color, n, speed, size){
+  if(particles.length > 700) n = Math.min(n, 2);
   for(let i=0;i<n;i++){
     const s = glowSprite(color, size*rnd(.6,1.3), 1); s.position.copy(pos);
-    const v = new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(speed*rnd(.3,1));
+    const v = randUnit().multiplyScalar(speed*rnd(.3,1));
     scene.add(s); particles.push({s, v, life:rnd(.4,.9), max:.9});
   }
 }
 function explode(pos, big){
   burst(pos,0xffffff,big?10:4,big?14:8,big?5:3);
-  burst(pos,0xffa030,big?40:18,big?30:18,big?2.4:1.6);
+  burst(pos,0xffa030,big?40:16,big?30:18,big?2.4:1.6);
   burst(pos,0xff3060,big?20:8,big?22:12,big?1.8:1.2);
-  if(big) S.shake = Math.max(S.shake,.5);
+  if(big && pos.distanceTo(ship.position) < 60) S.shake = Math.max(S.shake,.5);
 }
 function shockwave(pos, color){
   const m = new T.Mesh(new T.RingGeometry(.9,1,64), basic(color,{side:T.DoubleSide,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
@@ -452,38 +638,44 @@ function warpFx(sec){ S.warp = Math.max(S.warp, sec); }
 
 // ---------- Gegner ----------
 function spawnAlien(type, pos){
-  const D = TYPES[type], b = build(type);
-  const a = {type, m:b.g, upd:b.upd, hp:D.hp, r:D.r, pts:D.pts, dmg:D.dmg, pen:D.pen||0, boss:D.boss,
-    speed:D.speed*(1+(S.level-1)*.08), t:rnd(0,6), flash:0, fire:rnd(1,2.5), baseX:0, baseY:0};
-  if(a.boss){ const lvl = S.level/5; a.hp = D.hp + (lvl-1)*120; }
+  const D = TYPES[type], b = build(type), L = S.level;
+  const a = {type, D, m:b.g, upd:b.upd, hp:D.hp, r:D.r, pts:D.pts, dmg:D.dmg, boss:D.boss,
+    speed:(D.speed||0)*(1+(L-1)*.04), turn:D.turn||1, vel:V(), t:rnd(0,6), flash:0, fire:rnd(1.5,3.5), life:0,
+    mode:'atk', modeT:0, ev:V(), orb:rnd(0,TAU), orbAxis:randUnit(), launchT:rnd(3,6), mineT:2, tgt:null, retgt:0};
+  if(a.boss) a.hp = D.hp + S.bossCount*150;
   a.maxHp = a.hp;
-  if(D.scale) b.g.scale.setScalar(D.scale);
-  if(pos) b.g.position.copy(pos); else b.g.position.set(rnd(-14,14), rnd(0,9), rnd(-300,-260));
-  a.baseX = b.g.position.x; a.baseY = b.g.position.y;
-  a.mats = []; b.g.traverse(o => { if(o.material && o.material.emissive){ o.material = o.material.clone(); a.mats.push({mat:o.material, base:o.material.emissive.getHex()}); } });
+  let sc = D.scale || 1;
+  if(D.rock){ sc = rnd(1,2.6); a.r *= sc; a.hp = Math.round(a.hp*sc); a.vel.copy(randUnit()).multiplyScalar(rnd(1,6)); }
+  if(sc !== 1) b.g.scale.setScalar(sc);
+  b.g.position.copy(pos || spawnPoint(170, 240));
+  if(!D.rock && D.speed){ tmp.copy(ship.position).sub(b.g.position).normalize(); a.vel.copy(tmp).multiplyScalar(a.speed); }
+  if(!a.boss && D.foe && allies.length && Math.random() < .3) a.tgt = pick(allies);
+  a.mats = []; b.g.traverse(o => { if(o.material && o.material.emissive){ const orig=o.material; o.material = orig.clone(); orig.dispose(); a.mats.push({mat:o.material, base:o.material.emissive.getHex()}); } });
   scene.add(b.g); aliens.push(a); return a;
 }
+function maxFoes(){ return Math.min(38, 6 + S.level*2); }
 function spawnRandomAlien(){
-  const L = S.level, pool = ['saucer','saucer'];
-  if(L>=2) pool.push('hunter','zig','bee');
-  if(L>=3) pool.push('tank','jelly','crystal');
-  if(L>=4) pool.push('miner','spider','bee');
-  if(L>=6) pool.push('hunter','tank','spider','crystal');
-  const type = pick(pool);
-  if(type==='bee'){ // Schwarm aus 5 Bienen in V-Formation
-    const x=rnd(-10,10), y=rnd(1,8), z=rnd(-300,-260);
-    [[0,0],[-2.2,-1.6],[2.2,-1.6],[-4.4,-3.2],[4.4,-3.2]].forEach(([dx,dz]) => spawnAlien('bee', new T.Vector3(x+dx, y, z+dz)));
-  } else spawnAlien(type);
+  const L = S.level, pool = ['saucer','saucer','dart','dart','drone'];
+  if(L>=2) pool.push('hunter','zig','bee','dart');
+  if(L>=3) pool.push('tank','jelly','crystal','raider');
+  if(L>=4) pool.push('miner','spider','gunship','raider');
+  if(L>=6) pool.push('carrier','gunship','hunter','spider');
+  if(L>=8) pool.push('raider','dart','carrier','gunship');
+  let type = pick(pool);
+  if(type==='carrier' && aliens.filter(a=>a.type==='carrier').length >= 2) type = 'raider';
+  const base = spawnPoint(170, 250);
+  if(type==='bee'){
+    for(let i=0;i<5;i++) spawnAlien('bee', base.clone().add(randUnit().multiplyScalar(4)));
+  } else if(type==='dart' || type==='drone' || type==='raider'){
+    const n = type==='raider' ? 2 : 2 + Math.floor(Math.random()*(2+L/3));
+    for(let i=0;i<n;i++) spawnAlien(type, base.clone().add(randUnit().multiplyScalar(7)));
+  } else spawnAlien(type, base);
 }
-function spawnRock(){ spawnAlien(pick(['asteroid','asteroid','ice','ore'])); }
-function removeFrom(arr, item, obj){ const i=arr.indexOf(item); if(i>=0) arr.splice(i,1); scene.remove(obj); }
 function eyeOpen(){ return Math.max(0, Math.sin(S.t*.9)); }
 function hitAlien(a, dmg, at){
   if(a.type==='eye' && eyeOpen() < .3){ burst(at||a.m.position, 0x8ad8ff, 4, 6, .9); return; } // Lider zu = unverwundbar
   a.hp -= dmg; a.flash = .08;
   burst(at||a.m.position, 0xffe066, 3, 8, .8);
-  if(a.type==='tank') a.m.position.z -= 2;
-  if(a.boss) a.m.position.z -= .3;
   if(a.hp <= 0) killAlien(a, true);
 }
 function addScore(n){ S.score += n * (S.x2>0 ? 2 : 1); }
@@ -492,23 +684,42 @@ function killAlien(a, scored){
   const p = a.m.position.clone();
   removeFrom(aliens, a, a.m);
   if(a.boss){
-    for(let i=0;i<7;i++) explode(p.clone().add(new T.Vector3(rnd(-6,6),rnd(-4,4),rnd(-2,2))), true);
+    for(let i=0;i<7;i++) explode(p.clone().add(randUnit().multiplyScalar(rnd(2,7))), true);
     shockwave(p, 0xff47b8);
     banner(a.boss + ' besiegt!');
-    [-5,0,5].forEach(dx => spawnPickup(null, p.clone().add(new T.Vector3(dx,0,0))));
-    spawnGate();
-  } else explode(p, a.type==='tank' || a.type==='ore' || a.type==='asteroid');
-  if(a.type==='mine') { mineBlast(p); }
+    for(let i=0;i<3;i++) spawnPickup(null, p.clone().add(randUnit().multiplyScalar(6)));
+    spawnGate(); S.bossFight = false; S.lvlUpT = 3;
+  } else explode(p, a.type==='tank' || a.type==='ore' || a.type==='asteroid' || a.type==='carrier' || a.type==='gunship');
+  if(a.type==='mine') mineBlast(p);
   if(!scored) return;
   addScore(a.pts);
-  if(a.type==='crystal') for(let i=0;i<3;i++) spawnAlien('shard', p.clone().add(new T.Vector3(rnd(-2,2),rnd(-1.5,1.5),rnd(-1,1))));
-  const drop = a.type==='tank' || a.type==='ore' ? .5 : (a.type==='bee'||a.type==='shard'||a.type==='mine') ? .04 : .12;
+  if(a.D.foe) S.kills++;
+  if(a.type==='crystal') for(let i=0;i<3;i++) spawnAlien('shard', p.clone().add(randUnit().multiplyScalar(2)));
+  const drop = a.type==='tank' || a.type==='ore' || a.type==='carrier' || a.type==='gunship' ? .5 : (a.type==='bee'||a.type==='shard'||a.type==='mine'||a.type==='drone') ? .04 : .12;
   if(!a.boss && Math.random() < drop) spawnPickup(null, p);
-  if(!a.boss && a.pen && Math.random() < .2 && aliens.length < 22) spawnRandomAlien();
 }
 function mineBlast(p){
   shockwave(p, 0xff2040);
-  if(ship.visible && p.distanceTo(ship.position) < 5.5 && !shield.visible) damage(25);
+  if(ship.visible && p.distanceTo(ship.position) < 6 && !shield.visible) damage(25);
+}
+
+// ---------- Fluegelmaenner ----------
+function spawnAlly(){
+  const ks = Object.keys(SHIPS).filter(k=>k!==S.shipKey);
+  const key = ks[(allies.length*5 + S.level*3 + Math.floor(Math.random()*3)) % ks.length];
+  const b = build(key); b.g.scale.setScalar(.85);
+  const i = allies.length, side = i%2 ? 1 : -1, row = Math.floor(i/2);
+  const off = V(side*(8+row*5), row*3, 5+row*6);
+  b.g.position.copy(off).applyQuaternion(ship.quaternion).add(ship.position);
+  b.g.quaternion.copy(ship.quaternion);
+  scene.add(b.g);
+  allies.push({m:b.g, upd:b.upd, key, hp:40, vel:V(0,0,-1).applyQuaternion(ship.quaternion).multiplyScalar(Math.max(20,S.spd)), off,
+    fire:rnd(0,1), tgt:null, retgt:0, mode:'atk', modeT:0, ev:V()});
+}
+function refillAllies(){ const want = Math.min(4, 2 + Math.floor((S.level-1)/3)); while(allies.length < want) spawnAlly(); }
+function hurtAlly(al, n){
+  al.hp -= n; burst(al.m.position, 0x7dffb0, 4, 6, 1);
+  if(al.hp <= 0){ explode(al.m.position.clone(), true); removeFrom(allies, al, al.m); banner('Fluegelmann verloren'); }
 }
 
 // ---------- PowerUps ----------
@@ -523,11 +734,12 @@ function puTexture(key){
 }
 function spawnPickup(key, pos){
   key = key || pick(PU_POOL);
-  const m = new T.Mesh(new T.BoxGeometry(1.8,1.8,1.8), new T.MeshStandardMaterial({map:puTexture(key), emissive:PU[key].color, emissiveIntensity:.3, roughness:.4}));
-  m.add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(1.86,1.86,1.86)), new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.6})));
-  m.add(glowSprite(PU[key].color,5,.55));
-  if(pos) m.position.copy(pos); else m.position.set(rnd(-13,13), rnd(0,8), -300);
-  scene.add(m); pickups.push({key, m});
+  const m = new T.Mesh(new T.BoxGeometry(2,2,2), new T.MeshStandardMaterial({map:puTexture(key), emissive:PU[key].color, emissiveIntensity:.3, roughness:.4}));
+  m.add(new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(2.06,2.06,2.06)), new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.6})));
+  m.add(glowSprite(PU[key].color,6,.55));
+  if(pos) m.position.copy(pos);
+  else m.position.copy(ship.position).addScaledVector(V(0,0,-1).applyQuaternion(ship.quaternion), rnd(90,150)).add(randUnit().multiplyScalar(rnd(5,25)));
+  scene.add(m); pickups.push({key, m, life:35});
 }
 function collect(key){
   addScore(5);
@@ -537,9 +749,10 @@ function collect(key){
   else if(key==='slow') S.slow = 8;
   else if(key==='magnet') S.magnet = 10;
   else if(key==='life'){ S.lives = Math.min(5, S.lives+1); banner('Extra-Leben!'); }
+  else if(key==='wing'){ if(allies.length < 6){ spawnAlly(); banner('Fluegelmann!'); } else addScore(50); }
   else if(key==='bomb'){
-    aliens.slice().forEach(a => a.boss ? hitAlien(a, 80) : killAlien(a, true));
-    enemyShots.slice().forEach(b => removeFrom(enemyShots, b, b.m));
+    aliens.slice().forEach(a => { if(a.m.position.distanceTo(ship.position) < 260) a.boss ? hitAlien(a, 80) : killAlien(a, true); });
+    shots.slice().forEach(b => { if(b.team==='e') removeFrom(shots, b, b.m); });
     shockwave(ship.position.clone(), 0xff4d5e); shockwave(ship.position.clone(), 0xffffff);
     S.shake = .6; flashScreen('#fff');
   } else { S.weapon = key; S.weaponT = 12; }
@@ -549,53 +762,73 @@ function collect(key){
 // ---------- Warp-Tor nach jedem Boss ----------
 function spawnGate(){
   if(gate) return;
-  const b = build('gate'); b.g.scale.setScalar(1.6); b.g.position.set(0, 4, -320);
-  scene.add(b.g); gate = {m:b.g, upd:b.upd};
+  const b = build('gate'); b.g.scale.setScalar(1.8);
+  b.g.position.copy(ship.position).addScaledVector(V(0,0,-1).applyQuaternion(ship.quaternion), 150);
+  b.g.lookAt(ship.position);
+  scene.add(b.g); gate = {m:b.g, upd:b.upd, life:45};
 }
 
 // ---------- Kulisse ----------
 function spawnDeco(){
-  const b = build(pick(['satellite','station','debris','debris']));
-  const side = Math.random()<.5 ? -1 : 1;
-  b.g.position.set(side*rnd(30,60), rnd(4,28), -360); b.g.scale.setScalar(rnd(1.5,3));
+  const b = build(pick(['satellite','station','station','debris','debris']));
+  b.g.position.copy(spawnPoint(160, 320, .4)); b.g.scale.setScalar(rnd(2,5));
+  b.g.rotation.set(rnd(0,TAU), rnd(0,TAU), 0);
   scene.add(b.g); decos.push({m:b.g, upd:b.upd});
 }
 
 // ---------- Schuesse ----------
-const shotGeo = new T.BoxGeometry(.2,.2,1.8), heavyGeo = new T.BoxGeometry(.45,.45,2.4);
-const rocketGeo = new T.ConeGeometry(.3,1.2,6), plasmaGeo = new T.IcosahedronGeometry(.9,1);
-function addShot(x,y,z, vx,vy,vz, dmg, color, kind){
+const shotGeo = new T.BoxGeometry(.22,.22,2.2), heavyGeo = new T.BoxGeometry(.5,.5,2.8), railGeo = new T.BoxGeometry(.16,.16,7);
+const rocketGeo = new T.ConeGeometry(.3,1.2,6); rocketGeo.rotateX(Math.PI/2);
+const plasmaGeo = new T.IcosahedronGeometry(.9,1), ebGeo = new T.SphereGeometry(.5,10,8);
+[shotGeo,heavyGeo,railGeo,rocketGeo,plasmaGeo,ebGeo].forEach(g => g.userData.keep = true);
+const plasmaMat = basic(0xe8d8ff,{wireframe:true,transparent:true,opacity:.7}); plasmaMat.userData.keep = true;
+function makeShot(pos, vel, dmg, color, kind, team){
   let m;
-  if(kind==='rocket'){ m = new T.Mesh(rocketGeo, basic(color)); m.rotation.x=-Math.PI/2; m.add(glowSprite(color,2.2,.9)); }
-  else if(kind==='plasma'){ m = new T.Mesh(plasmaGeo, basic(0xe8d8ff,{wireframe:true,transparent:true,opacity:.7})); m.add(glowSprite(color,4.5,1)); m.add(glowSprite(0xffffff,1.6,1)); }
-  else { m = new T.Mesh(kind==='heavy'?heavyGeo:shotGeo, basic(color)); m.add(glowSprite(color, kind==='heavy'?2.6:1.6, .9)); }
-  m.position.set(x,y,z); scene.add(m);
-  shots.push({m, v:new T.Vector3(vx,vy,vz), dmg, kind, hits:new Set()});
+  if(kind==='rocket'){ m = new T.Mesh(rocketGeo, sharedBasic(color)); m.add(sharedGlow(color,2.2,.9)); }
+  else if(kind==='plasma'){ m = new T.Mesh(plasmaGeo, plasmaMat); m.add(sharedGlow(color,4.5,1)); m.add(sharedGlow(0xffffff,1.6,1)); }
+  else if(kind==='eb'){ m = new T.Mesh(ebGeo, sharedBasic(0xffd080)); m.add(sharedGlow(0xff7020,2.8,.9)); }
+  else if(kind==='rail'){ m = new T.Mesh(railGeo, sharedBasic(color)); m.add(sharedGlow(color,2.2,.9)); }
+  else { m = new T.Mesh(kind==='heavy'?heavyGeo:shotGeo, sharedBasic(color)); m.add(sharedGlow(color, kind==='heavy'?2.8:1.7, .9)); }
+  m.position.copy(pos); m.lookAt(tmp2.copy(pos).add(vel));
+  scene.add(m);
+  const pierce = kind==='plasma' || kind==='rail';
+  shots.push({m, v:vel.clone(), dmg, kind, team, pierce, hits: pierce ? new Set() : null, life: team==='e' ? 4 : (kind==='rail' ? 1.3 : 2.4)});
+}
+function gun(obj, baseVel, lx, ly, dx, dy, spd, dmg, color, kind){
+  const q = obj.quaternion;
+  const p = V(lx,ly,-3).applyQuaternion(q).add(obj.position);
+  const d = V(dx,dy,-1).normalize().applyQuaternion(q).multiplyScalar(spd).add(baseVel);
+  makeShot(p, d, dmg, color, kind, 'p');
 }
 let mgSide = 1;
 function fire(){
-  const p = ship.position;
-  switch(S.weapon){
-    case 'mg': S.cool=.055; mgSide=-mgSide; addShot(p.x+mgSide*1.1,p.y,p.z-1.5, rnd(-2,2),rnd(-1.5,1.5),-110, 6, 0xffb040); break;
-    case 'spread': S.cool=.28; [-26,-13,0,13,26].forEach(vx=>addShot(p.x,p.y,p.z-2, vx,0,-95, 8, 0x2de0c8)); break;
-    case 'rocket': S.cool=.36; mirror(s=>addShot(p.x+s*1.6,p.y,p.z-1, s*14,6,-40, 26, 0xff47b8, 'rocket')); break;
-    case 'plasma': S.cool=.45; addShot(p.x,p.y,p.z-2, 0,0,-55, 30, 0xb066ff, 'plasma'); break;
-    default:
-      const f = SHIPS[S.shipKey].fire;
-      if(f==='double'){ S.cool=.2; mirror(s=>addShot(p.x+s*1.4,p.y,p.z-2, 0,0,-105, 9, 0xff7a4a)); }
-      else if(f==='heavy'){ S.cool=.34; addShot(p.x,p.y,p.z-2, 0,0,-85, 22, 0x8aff6a, 'heavy'); }
-      else { S.cool=.16; addShot(p.x,p.y,p.z-2, 0,0,-100, 10, 0x3ee6ff); }
+  const o = ship, bv = S.vel;
+  const w = S.weapon==='laser' ? SHIPS[S.shipKey].fire : S.weapon;
+  switch(w){
+    case 'mg':     mgSide=-mgSide; gun(o,bv,mgSide*1.1,0, rnd(-.02,.02),rnd(-.02,.02),190,6,0xffb040); return .055;
+    case 'spread': [-.24,-.12,0,.12,.24].forEach(a=>gun(o,bv,0,0,a,0,170,8,0x2de0c8)); return .28;
+    case 'rocket': mirror(s=>gun(o,bv,s*1.6,0,s*.25,.12,70,26,0xff47b8,'rocket')); return .36;
+    case 'plasma': gun(o,bv,0,0,0,0,110,30,0xb066ff,'plasma'); return .45;
+    case 'double': mirror(s=>gun(o,bv,s*1.4,0,0,0,180,9,0xff7a4a)); return .2;
+    case 'heavy':  gun(o,bv,0,0,0,0,150,22,0x8aff6a,'heavy'); return .34;
+    case 'triple': [-.05,0,.05].forEach(a=>gun(o,bv,a*24,0,a,0,175,8,0xffb030)); return .24;
+    case 'rapid':  mgSide=-mgSide; gun(o,bv,mgSide*.8,0,0,0,190,6,0xffe066); return .085;
+    case 'cannon': gun(o,bv,0,-.3,0,0,100,36,0xb066ff,'plasma'); return .6;
+    case 'spread3':[-.09,0,.09].forEach(a=>gun(o,bv,0,0,a,0,170,8,0x2de0c8)); return .26;
+    case 'rail':   gun(o,bv,0,0,0,0,320,32,0x8ad8ff,'rail'); return .62;
+    case 'seeker': mirror(s=>gun(o,bv,s*1.2,0,s*.15,.05,80,9,0xff8ac8,'rocket')); return .32;
+    default:       gun(o,bv,0,0,0,0,170,10,0x3ee6ff); return .16;
   }
 }
-const ebGeo = new T.SphereGeometry(.45,10,8);
-const tmp = new T.Vector3();
-function enemyShot(from, sx, sy){
-  const m = new T.Mesh(ebGeo, basic(0xffd080)); m.add(glowSprite(0xff7020,2.6,.9));
-  m.position.copy(from);
-  const v = tmp.copy(ship.position).sub(from).normalize(); v.x += sx||0; v.y += sy||0;
-  m.position.addScaledVector(v, 3);
-  scene.add(m); enemyShots.push({m, v:v.clone().normalize().multiplyScalar(46)});
+function enemyShot(from, tgt, spread, spd, dmg){
+  spd = spd || 75;
+  const aim = tgt.m.position.clone();
+  if(tgt.vel) aim.addScaledVector(tgt.vel, from.distanceTo(aim)/spd*.75);
+  const dir = aim.sub(from).normalize();
+  if(spread) dir.addScaledVector(randUnit(), spread).normalize();
+  makeShot(from.clone().addScaledVector(dir,3), dir.multiplyScalar(spd), dmg||10, 0xffd080, 'eb', 'e');
 }
+function enemyShotDir(from, dir, spd, dmg){ makeShot(from.clone().addScaledVector(dir,3), dir.clone().multiplyScalar(spd), dmg||10, 0xffd080, 'eb', 'e'); }
 
 // ---------- Schaden ----------
 function damage(n){
@@ -607,7 +840,7 @@ function loseLife(){
   if(!ship.visible) return;
   explode(ship.position.clone(), true); explode(ship.position.clone(), true); shockwave(ship.position.clone(), 0xffa030);
   ship.visible=false; S.energy=0; S.lives--;
-  if(S.lives > 0) S.respawn = 1.6; else gameOver();
+  if(S.lives > 0) S.respawn = 1.8; else gameOver();
 }
 
 // =====================================================================
@@ -617,74 +850,92 @@ let vignetteT = 0, bannerT = 0;
 function flashScreen(color){ const v=$('vignette'); v.style.boxShadow=`inset 0 0 160px 40px ${color||'var(--red)'}`; v.style.opacity=.85; vignetteT=.25; }
 function banner(txt){ const b=$('banner'); b.textContent=txt; b.style.opacity=1; bannerT=1.8; }
 function show(id, on){ $(id).hidden = !on; }
+const dots = (v,max) => '●'.repeat(clamp(Math.round(v/max*5),1,5)) + '○'.repeat(5-clamp(Math.round(v/max*5),1,5));
 
 $('puLegend').innerHTML = Object.values(PU).map(p => `<span class="pu"><i style="background:${p.css}">${p.label}</i>${p.name}</span>`).join('');
 Object.keys(SHIPS).forEach(k => {
   const s = SHIPS[k], b = document.createElement('button'); b.type='button';
-  b.innerHTML = `<b>${s.name}</b><span>${s.info}</span>`;
+  b.innerHTML = `<b>${s.name}</b><span>${s.info}</span><small>Tempo ${dots(s.speed,46)}<br>Wendig ${dots(s.turn,2.4)}<br>Energie ${dots(s.energy,200)}</small>`;
   b.setAttribute('aria-pressed', k===S.shipKey);
   b.onclick = () => { S.shipKey=k; save('sd3d_ship',k); buildShip(k); [...$('shipPick').children].forEach(x=>x.setAttribute('aria-pressed', x===b)); };
   $('shipPick').appendChild(b);
 });
 
 function clearWorld(){
-  [aliens, shots, enemyShots, pickups, decos].forEach(arr => { arr.forEach(o => scene.remove(o.m)); arr.length=0; });
-  if(gate){ scene.remove(gate.m); gate=null; }
+  [aliens, shots, pickups, decos, allies].forEach(arr => { arr.forEach(o => { scene.remove(o.m); disposeObj(o.m); }); arr.length=0; });
+  if(gate){ scene.remove(gate.m); disposeObj(gate.m); gate=null; }
 }
 function newGame(){
   clearWorld();
   const sh = SHIPS[S.shipKey];
   Object.assign(S, {state:'play', score:0, level:1, lives:3, maxEnergy:sh.energy, energy:sh.energy, weapon:'laser', weaponT:0, inv:2.5, x2:0, slow:0, magnet:0, jam:0,
-    cool:0, respawn:0, spawnT:1, puT:6, decoT:2, rockT:8, bossCount:0, bossLevel:0});
-  ship.position.set(0,2,0); ship.visible=true;
-  sun.visible=true; sunGlow.visible=true; planet.g.visible=false;
+    cool:0, respawn:0, spawnT:2, puT:6, decoT:0, rockT:0, bossCount:0, bossFight:false, lvlUpT:0, kills:0, goal:12, spd:sh.speed, pitchV:0, yawV:0, rollV:0, camSnap:true, hintT:12});
+  ship.position.set(0,0,0); ship.quaternion.identity(); hull.rotation.set(0,0,0); ship.visible=true;
   show('scrStart',false); show('scrOver',false); show('scrPause',false);
-  for(let i=0;i<3;i++) spawnAlien('saucer', new T.Vector3(rnd(-12,12), rnd(0,8), rnd(-280,-150)));
-  spawnPickup('mg', new T.Vector3(0,3,-200));
+  document.body.classList.add('playing'); $('hint').style.opacity = 1;
+  for(let i=0;i<4;i++) spawnAlien('saucer', V(rnd(-30,30), rnd(-15,15), rnd(-200,-130)));
+  for(let i=0;i<3;i++) spawnAlien('dart', V(rnd(-40,40), rnd(-20,20), rnd(-220,-180)));
+  for(let i=0;i<4;i++) spawnDeco();
+  spawnPickup('mg', V(0,0,-70));
+  refillAllies();
 }
 function gameOver(){
-  S.state='over';
+  S.state='over'; document.body.classList.remove('playing');
   const nh = S.score > S.hi; if(nh){ S.hi=S.score; save('sd3d_hi',S.hi); }
   $('oScore').textContent = S.score.toLocaleString('de-DE');
   $('oHi').textContent = nh ? 'Neuer Highscore!' : 'Highscore: ' + S.hi.toLocaleString('de-DE');
-  setTimeout(()=>{ if(S.state==='over') show('scrOver',true); }, 900);
+  setTimeout(()=>{ if(S.state==='over') show('scrOver',true); }, 1100);
 }
 function togglePause(){
-  if(S.state==='play'){ S.state='pause'; show('scrPause',true); }
-  else if(S.state==='pause'){ S.state='play'; show('scrPause',false); }
+  if(S.state==='play'){ S.state='pause'; show('scrPause',true); document.body.classList.remove('playing'); }
+  else if(S.state==='pause'){ S.state='play'; show('scrPause',false); document.body.classList.add('playing'); }
 }
 $('btnStart').onclick=newGame; $('btnAgain').onclick=newGame; $('btnResume').onclick=togglePause;
 
 // ---------- Eingabe ----------
 addEventListener('keydown', e => {
   keys[e.code]=true;
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code)) e.preventDefault();
   if(e.code==='Enter' && (S.state==='start'||S.state==='over')) newGame();
   if(e.code==='KeyP'||e.code==='Escape') togglePause();
+  if(e.code==='KeyM'){ S.mouseSteer=!S.mouseSteer; save('sd3d_mouse', S.mouseSteer?1:0); banner('Maussteuerung ' + (S.mouseSteer?'an':'aus')); }
 });
 addEventListener('keyup', e => { keys[e.code]=false; });
-addEventListener('blur', () => { for(const k in keys) keys[k]=false; if(S.state==='play') togglePause(); });
-const touch = {active:false, lx:0, ly:0, shield:false};
-if('ontouchstart' in window) show('touchShield', true);
+addEventListener('blur', () => { for(const k in keys) keys[k]=false; mouse.down=false; if(S.state==='play') togglePause(); });
+const mouse = {x:0, y:0, on:false, down:false};
+addEventListener('mousemove', e => { mouse.x=e.clientX; mouse.y=e.clientY; mouse.on=true; });
+document.addEventListener('mouseleave', () => { mouse.on=false; });
 const cv = renderer.domElement;
-cv.addEventListener('touchstart', e => { const t=e.touches[0]; touch.active=true; touch.lx=t.clientX; touch.ly=t.clientY; e.preventDefault(); }, {passive:false});
-cv.addEventListener('touchmove', e => {
-  const t=e.touches[0], k=40/innerWidth;
-  ship.position.x = clamp(ship.position.x+(t.clientX-touch.lx)*k, -15, 15);
-  ship.position.y = clamp(ship.position.y-(t.clientY-touch.ly)*k, -1.5, 10);
-  touch.lx=t.clientX; touch.ly=t.clientY; e.preventDefault();
+cv.addEventListener('mousedown', e => { if(e.button===0) mouse.down=true; });
+addEventListener('mouseup', e => { if(e.button===0) mouse.down=false; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const touch = {id:null, ox:0, oy:0, sx:0, sy:0, shield:false, boost:false};
+if('ontouchstart' in window){ show('touchShield', true); show('touchBoost', true); }
+cv.addEventListener('touchstart', e => {
+  const t=e.changedTouches[0]; if(touch.id===null){ touch.id=t.identifier; touch.ox=t.clientX; touch.oy=t.clientY; touch.sx=touch.sy=0; }
+  e.preventDefault();
 }, {passive:false});
-cv.addEventListener('touchend', () => { touch.active=false; });
-const ts=$('touchShield');
-ts.addEventListener('touchstart', e => { touch.shield=true; e.preventDefault(); }, {passive:false});
-ts.addEventListener('touchend', () => { touch.shield=false; });
+cv.addEventListener('touchmove', e => {
+  for(const t of e.changedTouches) if(t.identifier===touch.id){ const R=Math.min(innerWidth,innerHeight)*.16; touch.sx=clamp((t.clientX-touch.ox)/R,-1,1); touch.sy=clamp(-(t.clientY-touch.oy)/R,-1,1); }
+  e.preventDefault();
+}, {passive:false});
+const endTouch = e => { for(const t of e.changedTouches) if(t.identifier===touch.id){ touch.id=null; touch.sx=touch.sy=0; } };
+cv.addEventListener('touchend', endTouch); cv.addEventListener('touchcancel', endTouch);
+[['touchShield','shield'],['touchBoost','boost']].forEach(([id,k]) => {
+  const el=$(id);
+  el.addEventListener('touchstart', e => { touch[k]=true; e.preventDefault(); }, {passive:false});
+  el.addEventListener('touchend', () => { touch[k]=false; }); el.addEventListener('touchcancel', () => { touch[k]=false; });
+});
 
 // ---------- HUD ----------
 let lastChips='', lastLives=-1;
 function updateHud(){
   $('hScore').textContent = S.score.toLocaleString('de-DE');
   $('hLevel').textContent = S.level;
+  $('hGoal').textContent = S.bossFight ? 'BOSS' : Math.min(S.kills,S.goal) + '/' + S.goal;
   $('hHi').textContent = Math.max(S.hi,S.score).toLocaleString('de-DE');
+  $('hSpd').textContent = Math.round(S.spd*10);
+  $('hAllies').textContent = allies.length;
   const e = clamp(S.energy/S.maxEnergy*100, 0, 100), he = $('hEnergy');
   he.style.width = e+'%'; he.style.background = e>50?'var(--green)':e>25?'var(--amber)':'var(--red)';
   if(S.lives !== lastLives){ lastLives=S.lives; $('hLives').innerHTML = Array.from({length:Math.max(3,S.lives)},(_,i)=>`<span class="${i<S.lives?'':'off'}"></span>`).join(''); }
@@ -702,34 +953,124 @@ function updateHud(){
   if(boss){ $('bossName').textContent = boss.boss; $('bossHp').style.width = clamp(boss.hp/boss.maxHp*100,0,100)+'%'; }
 }
 
+// Zielmarkierungen, Pfeile am Bildschirmrand, Fadenkreuz
+const cs = V(), ndc = V();
+function screenOf(pos){
+  cs.copy(pos).applyMatrix4(camera.matrixWorldInverse);
+  if(cs.z < 0){ ndc.copy(cs).applyMatrix4(camera.projectionMatrix);
+    if(Math.abs(ndc.x)<.94 && Math.abs(ndc.y)<.9) return {on:true, x:(ndc.x+1)/2*innerWidth, y:(1-ndc.y)/2*innerHeight}; }
+  let ax=cs.x, ay=-cs.y; const l=Math.hypot(ax,ay)||1; ax/=l; ay/=l; if(!cs.x && !cs.y) ay=1;
+  const W=innerWidth/2-44, H=innerHeight/2-44, k=Math.min(W/Math.max(Math.abs(ax),1e-3), H/Math.max(Math.abs(ay),1e-3));
+  return {on:false, x:innerWidth/2+ax*k, y:innerHeight/2+ay*k, ax, ay};
+}
+function drawArrow(s, color, big){
+  const g=octx, r=big?13:9; g.fillStyle=color; g.beginPath();
+  g.moveTo(s.x+s.ax*r, s.y+s.ay*r); g.lineTo(s.x-s.ay*r*.7-s.ax*r*.5, s.y+s.ax*r*.7-s.ay*r*.5); g.lineTo(s.x+s.ay*r*.7-s.ax*r*.5, s.y-s.ax*r*.7-s.ay*r*.5); g.fill();
+}
+function drawBracket(s, size, color, w){
+  const g=octx, h=size, c=h*.45; g.strokeStyle=color; g.lineWidth=w||1.5; g.beginPath();
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx,sy])=>{ g.moveTo(s.x+sx*h, s.y+sy*(h-c)); g.lineTo(s.x+sx*h, s.y+sy*h); g.lineTo(s.x+sx*(h-c), s.y+sy*h); });
+  g.stroke();
+}
+function drawOverlay(){
+  const g=octx; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,innerWidth,innerHeight);
+  if(S.state!=='play') return;
+  camera.updateMatrixWorld(); camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  const sp = ship.position;
+  // Gegner
+  const foes = aliens.filter(a=>!a.D.rock && a.type!=='mine').map(a=>({a, d:a.m.position.distanceTo(sp)})).sort((x,y)=>x.d-y.d);
+  let arrows = 0;
+  for(const {a,d} of foes){
+    if(d > 700) break;
+    const s = screenOf(a.m.position);
+    const col = a.boss ? '#ff47b8' : (a.D.far ? '#ffc53d' : '#ff4d5e');
+    if(s.on){ const size = clamp(a.r*a.m.scale.x*260/Math.max(d,1)+6, 7, a.boss?70:40); drawBracket(s, size, col, a.boss?2.5:1.5);
+      if(a.boss || a.D.far || a.hp < a.maxHp){ g.fillStyle='rgba(0,0,0,.5)'; g.fillRect(s.x-size, s.y+size+4, size*2, 3); g.fillStyle=col; g.fillRect(s.x-size, s.y+size+4, size*2*clamp(a.hp/a.maxHp,0,1), 3); } }
+    else if(a.boss || arrows < 6){ drawArrow(s, col, a.boss); arrows++; }
+  }
+  for(const al of allies){ const s=screenOf(al.m.position); if(s.on){ g.strokeStyle='#4dff8a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(s.x,s.y-8); g.lineTo(s.x+8,s.y); g.lineTo(s.x,s.y+8); g.lineTo(s.x-8,s.y); g.closePath(); g.stroke(); } }
+  for(const p of pickups){ const d=p.m.position.distanceTo(sp); if(d>320) continue; const s=screenOf(p.m.position);
+    if(s.on){ g.strokeStyle=PU[p.key].css; g.lineWidth=1.5; g.strokeRect(s.x-10,s.y-10,20,20); } else drawArrow(s, PU[p.key].css, false); }
+  if(gate){ const s=screenOf(gate.m.position); if(s.on){ g.strokeStyle='#3ee6ff'; g.lineWidth=2; g.beginPath(); g.arc(s.x,s.y,22,0,TAU); g.stroke(); g.fillStyle='#3ee6ff'; g.font='600 12px "Chakra Petch",sans-serif'; g.textAlign='center'; g.fillText('WARP',s.x,s.y-28); } else drawArrow(s,'#3ee6ff',true); }
+  // Fadenkreuz
+  if(ship.visible){
+    const s = screenOf(tmp.copy(sp).addScaledVector(fwd, 90));
+    if(s.on){ g.strokeStyle='rgba(62,230,255,.9)'; g.lineWidth=1.5; g.beginPath(); g.arc(s.x,s.y,13,0,TAU); g.stroke();
+      g.beginPath(); [[-22,0,-16,0],[16,0,22,0],[0,-22,0,-16],[0,16,0,22]].forEach(([a,b,c,d])=>{g.moveTo(s.x+a,s.y+b); g.lineTo(s.x+c,s.y+d);}); g.stroke(); }
+  }
+  // Mauszeiger
+  if(S.mouseSteer && mouse.on && touch.id===null){
+    g.strokeStyle='rgba(255,197,61,.85)'; g.lineWidth=1.5; g.beginPath(); g.arc(mouse.x,mouse.y,7,0,TAU); g.stroke();
+    g.strokeStyle='rgba(255,197,61,.18)'; g.beginPath(); g.moveTo(innerWidth/2,innerHeight/2); g.lineTo(mouse.x,mouse.y); g.stroke();
+  }
+  if(touch.id!==null){ g.strokeStyle='rgba(62,230,255,.4)'; g.lineWidth=2; const R=Math.min(innerWidth,innerHeight)*.16;
+    g.beginPath(); g.arc(touch.ox,touch.oy,R,0,TAU); g.stroke(); g.fillStyle='rgba(62,230,255,.35)'; g.beginPath(); g.arc(touch.ox+touch.sx*R, touch.oy-touch.sy*R, 18,0,TAU); g.fill(); }
+}
+function drawRadar(){
+  const g=rctx, W=radar.width, C=W/2, R=C-6, range=280;
+  g.clearRect(0,0,W,W);
+  if(S.state==='start') return;
+  g.fillStyle='rgba(14,4,32,.6)'; g.strokeStyle='rgba(62,230,255,.45)'; g.lineWidth=2;
+  g.beginPath(); g.arc(C,C,R,0,TAU); g.fill(); g.stroke();
+  g.strokeStyle='rgba(62,230,255,.18)'; g.beginPath(); g.arc(C,C,R/2,0,TAU); g.moveTo(C-R,C); g.lineTo(C+R,C); g.moveTo(C,C-R); g.lineTo(C,C+R); g.stroke();
+  g.fillStyle='rgba(62,230,255,.08)'; g.beginPath(); g.moveTo(C,C); g.arc(C,C,R,-Math.PI/2-.55,-Math.PI/2+.55); g.fill();
+  invQ.copy(ship.quaternion).invert();
+  const plot = (pos, color, size) => {
+    tmp.copy(pos).sub(ship.position).applyQuaternion(invQ);
+    let x=tmp.x/range, y=tmp.z/range; const h=clamp(tmp.y/range,-1,1), l=Math.hypot(x,y);
+    if(l>1){ x/=l; y/=l; }
+    const px=C+x*R, py=C+y*R, ty=py-h*R*.5;
+    g.strokeStyle=color; g.globalAlpha=.6; g.lineWidth=1.5; g.beginPath(); g.moveTo(px,py); g.lineTo(px,ty); g.stroke(); g.globalAlpha=1;
+    g.fillStyle=color; g.beginPath(); g.arc(px,ty,size,0,TAU); g.fill();
+  };
+  for(const a of aliens){ if(a.D.rock) plot(a.m.position,'rgba(160,150,140,.6)',2); else plot(a.m.position, a.boss?'#ff47b8':a.type==='mine'?'#ff9a9a':'#ff4d5e', a.boss?8:a.D.far?6:3.5); }
+  for(const p of pickups) plot(p.m.position, PU[p.key].css, 4);
+  for(const al of allies) plot(al.m.position, '#4dff8a', 4);
+  if(gate) plot(gate.m.position, '#3ee6ff', 7);
+  g.fillStyle='#ffc53d'; g.beginPath(); g.moveTo(C,C-7); g.lineTo(C+5,C+5); g.lineTo(C-5,C+5); g.fill();
+}
+
 // =====================================================================
 // HAUPTSCHLEIFE
 // =====================================================================
+const dz = v => Math.abs(v)<.07 ? 0 : (v-Math.sign(v)*.07)/.93;
+const des = V(), toV = V();
+function targetOf(a){
+  if(a.tgt && allies.indexOf(a.tgt) < 0) a.tgt = null;
+  if(a.tgt) return a.tgt;
+  if(ship.visible) return PLAYER;
+  return allies[0] || null;
+}
+function levelUp(){
+  S.level++; S.kills=0; S.goal = 8 + S.level*4; warpFx(1.4);
+  if(S.level%5===0){
+    const kind = BOSS_ORDER[S.bossCount % BOSS_ORDER.length]; S.bossCount++; S.bossFight = true;
+    banner('Warnung: ' + TYPES[kind].boss + '!'); spawnAlien(kind, spawnPoint(230, 260, .9));
+  } else banner('Level ' + S.level);
+  refillAllies();
+}
+
 function update(dt){
   S.t += dt;
   const playing = S.state==='play';
-  const flow = S.state==='pause' ? 0 : (playing ? 1+(S.level-1)*.08 : .5);
   const slowF = S.slow>0 ? .4 : 1, adt = dt*slowF;
 
-  // Welt
-  grid.position.z = (grid.position.z + 60*flow*dt) % 10;
-  const sp = starGeo.attributes.position.array;
-  for(let i=0;i<STARS;i++){ sp[i*3+2]+=90*flow*dt; if(sp[i*3+2]>25) sp[i*3+2]-=620; }
-  starGeo.attributes.position.needsUpdate = true;
-  planet.upd(S.t);
+  planet.upd(S.t); planet2.upd(S.t*.7);
   if(shipUpd) shipUpd(S.t);
   // Warp-Streifen
-  if(S.warp > 0){
-    S.warp -= dt; warpLines.material.opacity = Math.min(1, S.warp);
-    for(let i=0;i<WARP_N;i++){ const s=warpSt[i]; s[2]+=420*dt; if(s[2]>15) s[2]-=210; warpPos.set([s[0]+ship.position.x*.5,s[1],s[2],s[0]+ship.position.x*.5,s[1],s[2]-14],i*6); }
+  const warpOp = S.warp>0 ? Math.min(1,S.warp) : (S.boosting && playing ? .3 : 0);
+  if(S.warp>0) S.warp -= dt;
+  warpLines.material.opacity = warpOp;
+  if(warpOp>0){
+    for(let i=0;i<WARP_N;i++){ const s=warpSt[i]; s[2]+=420*dt; if(s[2]>5) s[2]-=210; warpPos.set([s[0],s[1],s[2],s[0],s[1],s[2]-14],i*6); }
     warpGeo.attributes.position.needsUpdate = true;
-  } else warpLines.material.opacity = 0;
+  }
   // Partikel & Effekte
   for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt;
     if(p.life<=0){ scene.remove(p.s); p.s.material.dispose(); particles.splice(i,1); continue; }
     p.s.position.addScaledVector(p.v,dt); p.v.multiplyScalar(.96); p.s.material.opacity=p.life/p.max; }
   for(let i=effects.length-1;i>=0;i--){ const e=effects[i]; e.life+=dt; const k=e.life/e.max;
-    if(k>=1){ scene.remove(e.obj); effects.splice(i,1); continue; } e.upd(k); }
+    if(k>=1){ scene.remove(e.obj); disposeObj(e.obj); effects.splice(i,1); continue; } e.upd(k); }
   if(!playing) return;
 
   // --- Raumschiff ---
@@ -737,197 +1078,263 @@ function update(dt){
   const shieldOn = ship.visible && S.energy>0 && S.jam<=0 && (keys.ShiftLeft||keys.ShiftRight||touch.shield);
   shield.visible = shieldOn;
   const shieldR = SH.shieldR;
-  const v = (shieldOn ? SH.speed*.5 : SH.speed)*dt;
-  let dx=0, dy=0;
-  if(keys.ArrowLeft||keys.KeyA) dx-=1; if(keys.ArrowRight||keys.KeyD) dx+=1;
-  if(keys.ArrowUp||keys.KeyW) dy+=1; if(keys.ArrowDown||keys.KeyS) dy-=1;
-  ship.position.x = clamp(ship.position.x+dx*v, -15, 15);
-  ship.position.y = clamp(ship.position.y+dy*v, -1.5, 10);
-  ship.rotation.z += ((-dx*.5)-ship.rotation.z)*Math.min(1,dt*8);
-  ship.rotation.x += ((dy*.2)-ship.rotation.x)*Math.min(1,dt*8);
+  let sx=0, sy=0, roll=0;
+  if(keys.ArrowLeft) sx-=1; if(keys.ArrowRight) sx+=1; if(keys.ArrowUp) sy+=1; if(keys.ArrowDown) sy-=1;
+  if(!sx && !sy){
+    if(touch.id!==null){ sx=touch.sx; sy=touch.sy; }
+    else if(S.mouseSteer && mouse.on){ const R=Math.min(innerWidth,innerHeight)*.36; sx=dz(clamp((mouse.x-innerWidth/2)/R,-1,1)); sy=dz(clamp(-(mouse.y-innerHeight/2)/R,-1,1)); }
+  }
+  if(keys.KeyA||keys.KeyQ) roll+=1; if(keys.KeyD||keys.KeyE) roll-=1;
+  const k6 = Math.min(1, dt*6), turn = SH.turn*(shieldOn?.7:1);
+  S.pitchV += (sy*turn - S.pitchV)*k6; S.yawV += (sx*turn - S.yawV)*k6; S.rollV += (roll*2.4 - S.rollV)*k6;
+  if(ship.visible){ ship.rotateX(S.pitchV*dt); ship.rotateY(-S.yawV*dt); ship.rotateZ(S.rollV*dt); }
+  hull.rotation.z += ((-S.yawV/turn*.55 + S.rollV*.05) - hull.rotation.z)*k6;
+  hull.rotation.x += ((S.pitchV/turn*.12) - hull.rotation.x)*k6;
+  let tgtSpd = SH.speed;
+  S.boosting = false;
+  if((keys.KeyW||keys.Tab||touch.boost) && S.energy>6 && ship.visible){ tgtSpd *= 1.8; S.energy -= 7*dt; S.boosting = true; }
+  else if(keys.KeyS) tgtSpd *= .35;
+  if(shieldOn) tgtSpd *= .6;
+  S.spd += (tgtSpd - S.spd)*Math.min(1, dt*2.2);
+  fwd.set(0,0,-1).applyQuaternion(ship.quaternion);
+  S.vel.copy(fwd).multiplyScalar(ship.visible ? S.spd : 0);
+  ship.position.addScaledVector(S.vel, dt);
   shield.rotation.y += dt; shield.rotation.x += dt*.6;
   invAura.visible = S.inv>0 && ship.visible;
   if(invAura.visible) invAura.material.opacity = .35+.25*Math.sin(S.t*12);
-  if(shieldOn) S.energy -= SH.drain*dt; else if(ship.visible) S.energy = Math.min(S.maxEnergy, S.energy + SH.regen*dt);
+  if(shieldOn) S.energy -= SH.drain*dt; else if(ship.visible && !S.boosting) S.energy = Math.min(S.maxEnergy, S.energy + SH.regen*dt);
   ['inv','x2','slow','magnet','jam'].forEach(k => S[k] = Math.max(0, S[k]-dt));
   S.cool -= dt;
   if(S.weaponT>0){ S.weaponT-=dt; if(S.weaponT<=0) S.weapon='laser'; }
-  if(ship.visible && !shieldOn && S.cool<=0 && (keys.Space||keys.KeyX||touch.active)) fire();
-  if(S.respawn>0){ S.respawn-=dt; if(S.respawn<=0){ ship.visible=true; ship.position.set(0,2,0); S.energy=S.maxEnergy; S.inv=3; S.weapon='laser'; S.weaponT=0; } }
-
-  // --- Level, Bosse, Spawner ---
-  const lvl = 1 + Math.floor(S.score/600);
-  if(lvl > S.level){
-    S.level = lvl; warpFx(1.4);
-    const alt = lvl%2===0; sun.visible=sunGlow.visible=!alt; planet.g.visible=alt;
-    if(lvl%5===0 && S.bossLevel!==lvl){
-      S.bossLevel=lvl; const kind = BOSS_ORDER[S.bossCount % BOSS_ORDER.length]; S.bossCount++;
-      banner('Warnung: ' + TYPES[kind].boss + '!'); spawnAlien(kind, new T.Vector3(0,6,-340));
-    } else banner('Level ' + lvl);
-  }
-  const bossAlive = aliens.some(a=>a.boss);
-  const normal = aliens.filter(a=>a.pen>0).length;
-  S.spawnT -= dt;
-  if(S.spawnT<=0 && normal < Math.min(20, 3+Math.floor(S.level*1.4)) * (bossAlive?.5:1)){ spawnRandomAlien(); S.spawnT = Math.max(.35, 1.4-S.level*.09); }
-  S.puT -= dt; if(S.puT<=0){ spawnPickup(); S.puT=rnd(7,11); }
-  S.decoT -= dt; if(S.decoT<=0){ spawnDeco(); S.decoT=rnd(4,8); }
-  if(S.level>=2){ S.rockT -= dt; if(S.rockT<=0){ spawnRock(); S.rockT=rnd(4,9); } }
-
-  // --- Gegner ---
+  if(ship.visible && !shieldOn && S.cool<=0 && (keys.Space||keys.KeyX||mouse.down||touch.id!==null)) S.cool = fire();
+  if(S.respawn>0){ S.respawn-=dt; if(S.respawn<=0){ ship.visible=true; S.energy=S.maxEnergy; S.inv=3; S.weapon='laser'; S.weaponT=0; S.spd=SH.speed*.5; } }
+  if(S.hintT>0){ S.hintT-=dt; if(S.hintT<=0) $('hint').style.opacity=0; }
   const sp0 = ship.position;
-  for(let i=aliens.length-1;i>=0;i--){
-    const a=aliens[i], m=a.m; a.t+=adt;
-    if(a.upd) a.upd(S.t);
-    if(a.boss){
-      if(m.position.z < -70) m.position.z += a.speed*dt;
-      a.fire -= adt;
-      const canShoot = ship.visible && m.position.z > -200;
-      if(a.type==='mothership'){
-        m.position.x=Math.sin(a.t*.5)*12; m.position.y=6+Math.sin(a.t*.9)*3; m.rotation.z+=adt*.4;
-        if(a.fire<=0 && canShoot){ a.fire=Math.max(.5,1.4-S.level*.05); [-.12,0,.12].forEach(s=>enemyShot(m.position,s)); }
-      } else if(a.type==='worm'){
-        m.position.x=Math.sin(a.t*.8)*13; m.position.y=5+Math.sin(a.t*1.6)*4;
-        if(a.fire<=0 && canShoot){ a.fire=.7; enemyShot(m.position, rnd(-.05,.05)); }
-      } else if(a.type==='eye'){
-        m.position.x=Math.sin(a.t*.4)*9; m.position.y=6+Math.cos(a.t*.6)*2; m.lookAt(sp0);
-        if(eyeOpen()>.5 && a.fire<=0 && canShoot){ a.fire=.16; enemyShot(m.position, rnd(-.03,.03), rnd(-.03,.03)); }
-      } else if(a.type==='fortress'){
-        m.position.x=Math.sin(a.t*.3)*7; m.position.y=7;
-        if(a.fire<=0 && canShoot){ a.fire=1.3; [-.3,-.1,.1,.3].forEach(s=>enemyShot(m.position.clone().add(new T.Vector3(s*12,0,0)), s*.4, rnd(-.05,.05))); }
+
+  // --- Level, Spawner ---
+  if(!S.bossFight && S.lvlUpT<=0 && S.kills >= S.goal) levelUp();
+  if(S.lvlUpT>0){ S.lvlUpT-=dt; if(S.lvlUpT<=0) levelUp(); }
+  const foeCount = aliens.filter(a=>a.D.foe).length;
+  S.spawnT -= dt;
+  if(S.spawnT<=0 && foeCount < maxFoes()*(S.bossFight?.4:1)){ spawnRandomAlien(); S.spawnT = Math.max(.5, 2.2-S.level*.12); }
+  S.puT -= dt; if(S.puT<=0){ spawnPickup(); S.puT=rnd(6,10); }
+  S.decoT -= dt; if(S.decoT<=0){ if(decos.length < 9) spawnDeco(); S.decoT=rnd(2,4); }
+  S.rockT -= dt; if(S.rockT<=0){ if(aliens.filter(a=>a.D.rock).length < Math.min(30, 10+S.level*2)) spawnAlien(pick(['asteroid','asteroid','ice','ore']), spawnPoint(120, 280, .5)); S.rockT=rnd(.4,1.2); }
+
+  // --- Fluegelmaenner ---
+  for(let i=allies.length-1;i>=0;i--){
+    const al=allies[i], m=al.m; if(al.upd) al.upd(S.t);
+    al.retgt -= dt; al.fire -= dt;
+    if(al.retgt<=0 || (al.tgt && aliens.indexOf(al.tgt)<0)){
+      al.retgt = 1.5; al.tgt = null; let bd = 330*330;
+      for(const a of aliens){ if(!a.D.foe && !a.boss) continue; const d=a.m.position.distanceToSquared(m.position); if(d<bd){ bd=d; al.tgt=a; } }
+    }
+    let spd = 44;
+    if(al.tgt){
+      toV.copy(al.tgt.m.position).sub(m.position); const dist=toV.length(); toV.divideScalar(dist||1);
+      if(al.mode==='ev'){ des.copy(al.ev); al.modeT-=dt; if(al.modeT<=0) al.mode='atk'; }
+      else { des.copy(toV); if(dist < 16 + al.tgt.r){ al.mode='ev'; al.modeT=rnd(1,1.8); al.ev.copy(randUnit()).addScaledVector(toV,.3).normalize(); } }
+      tmp.copy(al.vel).normalize();
+      if(al.fire<=0 && dist<170 && tmp.dot(toV)>.95){
+        al.fire = .32;
+        const q = m.quaternion, p = V(0,0,-3).applyQuaternion(q).add(m.position);
+        makeShot(p, V(0,0,-1).applyQuaternion(q).multiplyScalar(170).add(al.vel), 7, 0x4dff8a, 'bolt', 'p');
       }
     } else {
-      const mv = a.speed*adt;
-      switch(a.type){
-        case 'hunter': m.position.z+=mv; m.position.x+=clamp(sp0.x-m.position.x,-1,1)*7*adt; m.position.y+=clamp(sp0.y-m.position.y,-1,1)*5*adt; m.lookAt(sp0); break;
-        case 'zig': m.position.z+=mv; m.position.x=a.baseX+Math.sin(a.t*2.2)*7; break;
-        case 'jelly': m.position.z+=mv; m.position.x=a.baseX+Math.sin(a.t*.9)*4; m.position.y=a.baseY+Math.sin(a.t*1.7)*1.5; break;
-        case 'bee': m.position.z+=mv; m.position.x+=Math.sin(a.t*6)*3*adt; m.position.y+=Math.cos(a.t*5)*2*adt; break;
-        case 'spider': m.position.z+=mv*(.6+2*Math.max(0,Math.sin(a.t*2))); m.position.y=a.baseY+Math.abs(Math.sin(a.t*2))*3; m.lookAt(sp0); break;
-        case 'miner':
-          m.position.z+=mv; a.fire-=adt;
-          if(a.fire<=0 && m.position.z<-30){ a.fire=rnd(1.6,2.6); spawnAlien('mine', m.position.clone().add(new T.Vector3(0,-1,0))); }
-          break;
-        case 'mine': m.position.z += 30*flow*adt; // treibt mit der Welt
-          if(ship.visible && m.position.distanceTo(sp0) < 4.5){ killAlien(a,false); continue; }
-          break;
-        case 'asteroid': case 'ice': case 'ore': m.position.z+=mv; break;
-        default: m.position.z+=mv;
+      tmp.copy(al.off).applyQuaternion(ship.quaternion).add(sp0);
+      toV.copy(tmp).sub(m.position); const dist=toV.length();
+      if(dist<4) des.copy(fwd); else des.copy(toV).divideScalar(dist);
+      spd = clamp(S.spd + dist*.8, 15, 75);
+    }
+    al.vel.lerp(des.multiplyScalar(spd), Math.min(1, 2.4*dt));
+    m.position.addScaledVector(al.vel, dt);
+    if(al.vel.lengthSq()>.01) m.lookAt(tmp.copy(m.position).sub(al.vel));
+    if(m.position.distanceTo(sp0) > 500){ tmp.copy(al.off).applyQuaternion(ship.quaternion).add(sp0); m.position.copy(tmp); }
+  }
+
+  // --- Gegner ---
+  const L = S.level, fireMul = 1 + (L-1)*.06;
+  for(let i=aliens.length-1;i>=0;i--){
+    const a=aliens[i]; if(!a) continue;
+    const m=a.m, D=a.D; a.t+=adt; a.life+=dt;
+    if(a.upd) a.upd(S.t);
+    const tg = targetOf(a), pos = m.position;
+    let dist = 1e9;
+    if(tg){ toV.copy(tg.m.position).sub(pos); dist=toV.length(); toV.divideScalar(dist||1); }
+    a.fire -= adt;
+    if(D.ai==='chase' && tg){
+      if(a.mode==='ev'){ des.copy(a.ev); a.modeT-=adt; if(a.modeT<=0) a.mode='atk'; }
+      else { des.copy(toV); if(dist < 12 + a.r){ a.mode='ev'; a.modeT=rnd(1,2.2); a.ev.copy(randUnit()).addScaledVector(toV,.4).normalize(); } }
+      if(D.wobble){ des.x += Math.sin(a.t*3)*.7; des.y += Math.cos(a.t*2.6)*.7; }
+      let spd = a.speed; if(D.lunge) spd *= .6 + 1.6*Math.max(0, Math.sin(a.t*2));
+      a.vel.lerp(des.normalize().multiplyScalar(spd), Math.min(1, a.turn*adt));
+      pos.addScaledVector(a.vel, adt);
+      if(D.face) m.lookAt(tmp.copy(pos).addScaledVector(a.vel, D.face));
+      tmp.copy(a.vel).normalize();
+      if(D.shoot && a.fire<=0 && dist<140 && dist>8 && (!D.face || tmp.dot(toV)>.85)){ a.fire = D.shoot*rnd(.8,1.3)/fireMul; enemyShot(pos, tg, .03); }
+    } else if(D.ai==='gun' && tg){
+      const stand = D.launch ? 120 : 55;
+      des.copy(toV).multiplyScalar(dist>stand+15 ? 1 : dist<stand-15 ? -.7 : 0);
+      tmp.crossVectors(toV, a.orbAxis); des.addScaledVector(tmp, .8);
+      if(des.lengthSq()<.001) des.copy(toV);
+      a.vel.lerp(des.normalize().multiplyScalar(a.speed), Math.min(1, a.turn*adt));
+      pos.addScaledVector(a.vel, adt);
+      if(D.face) m.lookAt(tmp.copy(pos).addScaledVector(toV, D.face*10));
+      if(D.shoot && a.fire<=0 && dist<170){
+        a.fire = D.shoot*rnd(.8,1.3)/fireMul;
+        const n = D.burst || (D.launch ? 2 : 1);
+        for(let k=0;k<n;k++) enemyShot(pos, tg, .05, a.type==='tank'?60:75, a.type==='tank'?16:10);
       }
-      if(a.type==='tank' && S.level>=6){ a.fire-=adt; if(a.fire<=0 && m.position.z<-40){ a.fire=rnd(2,3.5); enemyShot(m.position); } }
+      if(D.launch){ a.launchT-=adt; if(a.launchT<=0 && dist<260){ a.launchT=rnd(5,8); for(let k=0;k<2;k++) spawnAlien('drone', pos.clone().add(randUnit().multiplyScalar(5))); } }
+      if(D.mines){ a.mineT-=adt; if(a.mineT<=0 && dist<160){ a.mineT=rnd(1.8,2.8); spawnAlien('mine', pos.clone().addScaledVector(a.vel, -.1)); } }
+    } else if(D.ai==='mine'){
+      if(a.life>30){ killAlien(a,false); continue; }
+      if(ship.visible && pos.distanceTo(sp0) < 4.5){ killAlien(a,false); continue; }
+    } else if(D.ai==='rock'){
+      pos.addScaledVector(a.vel, adt);
+    } else if(D.ai==='boss'){
+      a.orb += adt*.32;
+      const R = a.type==='fortress' ? 75 : 62;
+      tmp.set(Math.cos(a.orb)*R, Math.sin(a.orb*.7)*22, Math.sin(a.orb)*R).add(sp0);
+      pos.lerp(tmp, 1-Math.exp(-adt*.8));
+      if(a.type!=='fortress' && tg) m.lookAt(tg.m.position);
+      const can = tg && dist < 230;
+      if(a.type==='mothership'){
+        m.children[0].rotation.z += adt*.4;
+        if(a.fire<=0 && can){ a.fire=Math.max(.55,1.4-L*.04); for(let k=0;k<3;k++) enemyShot(pos, tg, .06, 75, 14); }
+        a.launchT-=adt; if(a.launchT<=0){ a.launchT=8; for(let k=0;k<3;k++) spawnAlien('dart', pos.clone().add(randUnit().multiplyScalar(9))); }
+      } else if(a.type==='worm'){
+        if(a.fire<=0 && can){ a.fire=.45; enemyShot(pos, tg, .02, 85, 14); }
+      } else if(a.type==='eye'){
+        if(eyeOpen()>.5 && a.fire<=0 && can){ a.fire=.16; enemyShot(pos, tg, .04, 80, 12); }
+      } else if(a.type==='fortress'){
+        if(a.fire<=0 && can){ a.fire=1.3; for(let k=0;k<4;k++) enemyShot(pos.clone().add(randUnit().multiplyScalar(6)), tg, .05, 75, 14); }
+        a.launchT-=adt; if(a.launchT<=0){ a.launchT=6; for(let k=0;k<20;k++){ const ang=k/20*TAU; enemyShotDir(pos, V(Math.cos(ang),Math.sin(k*1.3)*.2,Math.sin(ang)).normalize(), 45, 12); } }
+      }
     }
     if(a.flash>0){ a.flash-=dt; a.mats.forEach(x=>x.mat.emissive.setHex(a.flash>0?0xffffff:x.base)); }
     if(aliens.indexOf(a)<0) continue;
+    const dP = pos.distanceTo(sp0);
+    if(!a.boss && dP > (D.rock ? 420 : 650)){ removeFrom(aliens, a, m); continue; }
     // Kollision mit Schiff / Schild
     if(ship.visible){
-      const d = m.position.distanceTo(sp0);
-      if(shieldOn && d < a.r+shieldR){
+      const rr = D.rock ? a.r : a.r;
+      if(shieldOn && dP < rr+shieldR){
         if(a.type==='jelly'){ S.jam=2.5; banner('Schild gestoert!'); }
         hitAlien(a, a.boss?4:12); S.energy -= 3;
-        if(aliens.indexOf(a)>=0) m.position.z -= 6;
+        if(aliens.indexOf(a)>=0){ tmp.copy(pos).sub(sp0).normalize(); pos.addScaledVector(tmp, 6); a.vel.addScaledVector(tmp, 20); }
         continue;
       }
-      if(d < a.r+1.3){
-        if(a.boss){ damage(a.dmg); ship.position.y=clamp(ship.position.y-4,-1.5,10); continue; }
+      if(dP < rr+1.4){
+        if(a.boss){ damage(a.dmg); tmp.copy(sp0).sub(pos).normalize(); ship.position.addScaledVector(tmp, 6); continue; }
         if(S.inv>0) killAlien(a,true); else { damage(a.dmg); killAlien(a,false); }
         continue;
       }
     }
-    // Durchgekommen
-    if(m.position.z > 10){
-      removeFrom(aliens, a, m);
-      if(ship.visible && a.pen){ S.energy -= a.pen; S.score=Math.max(0,S.score-5); flashScreen(); if(S.energy<=0) loseLife(); }
-    }
   }
 
-  // --- Eigene Schuesse ---
+  // --- Schuesse ---
   for(let i=shots.length-1;i>=0;i--){
-    const s=shots[i], m=s.m;
+    const s=shots[i]; if(!s) continue;
+    const m=s.m; s.life-=dt;
+    prev.copy(m.position);
     if(s.kind==='rocket' && aliens.length){
-      let best=null, bd=1e9;
-      for(const a of aliens){ const d=a.m.position.distanceToSquared(m.position); if(d<bd && a.m.position.z<m.position.z){ bd=d; best=a; } }
-      if(best){ tmp.copy(best.m.position).sub(m.position).normalize().multiplyScalar(160*dt); s.v.add(tmp); s.v.setLength(Math.min(75, s.v.length()+60*dt)); }
-      m.lookAt(tmp.copy(m.position).add(s.v)); m.rotateX(Math.PI/2);
-      if(Math.random()<.6) burst(m.position,0xff8ac8,1,2,.8);
+      let best=null, bd=220*220;
+      for(const a of aliens){ if(a.D.rock) continue; tmp.copy(a.m.position).sub(m.position); if(tmp.dot(s.v)<=0) continue; const d=tmp.lengthSq(); if(d<bd){ bd=d; best=a; } }
+      if(best){ tmp.copy(best.m.position).sub(m.position).normalize().multiplyScalar(240*dt); s.v.add(tmp); s.v.setLength(Math.min(130, s.v.length()+80*dt)); }
+      m.lookAt(tmp.copy(m.position).add(s.v));
+      if(Math.random()<.5) burst(m.position,0xff8ac8,1,2,.8);
     }
     if(s.kind==='plasma'){ m.rotation.x+=dt*3; m.rotation.y+=dt*4; }
-    m.position.addScaledVector(s.v, dt);
-    let gone=false;
-    for(const a of aliens){
-      if(s.hits.has(a)) continue;
-      if(a.m.position.distanceTo(m.position) < a.r+(s.kind==='plasma'?1:.5)){
-        hitAlien(a, s.dmg, m.position.clone());
-        if(s.kind==='plasma'){ s.hits.add(a); continue; }   // Plasma durchschlaegt
-        if(s.kind==='rocket') explode(m.position.clone(), false);
-        gone=true; break;
+    m.position.addScaledVector(s.v, s.team==='e' ? adt : dt);
+    let gone = s.life<=0;
+    if(!gone && s.team==='p'){
+      for(const a of aliens){
+        if(s.hits && s.hits.has(a)) continue;
+        if(segHit(prev, m.position, a.m.position, a.r+(s.pierce?1:.5))){
+          hitAlien(a, s.dmg, m.position.clone());
+          if(s.pierce){ s.hits.add(a); continue; }
+          if(s.kind==='rocket') explode(m.position.clone(), false);
+          gone=true; break;
+        }
       }
+    } else if(!gone){
+      if(ship.visible){
+        if(shieldOn && segHit(prev, m.position, sp0, shieldR+.2)){ burst(m.position,0xffa030,6,8,1); gone=true; }
+        else if(segHit(prev, m.position, sp0, 1.7)){ damage(s.dmg); explode(m.position.clone(),false); gone=true; }
+      }
+      if(!gone) for(const al of allies){ if(segHit(prev, m.position, al.m.position, 1.9)){ hurtAlly(al, s.dmg); gone=true; break; } }
     }
-    if(gone || m.position.z<-340 || Math.abs(m.position.x)>80 || m.position.y>60) removeFrom(shots, s, m);
-  }
-
-  // --- Gegnerschuesse ---
-  for(let i=enemyShots.length-1;i>=0;i--){
-    const b=enemyShots[i]; b.m.position.addScaledVector(b.v, adt);
-    if(ship.visible){
-      const d=b.m.position.distanceTo(sp0);
-      if(shieldOn && d<shieldR+.2){ burst(b.m.position,0xffa030,6,8,1); removeFrom(enemyShots,b,b.m); continue; }
-      if(d<1.4){ damage(12); explode(b.m.position.clone(),false); removeFrom(enemyShots,b,b.m); continue; }
-    }
-    if(b.m.position.z>15) removeFrom(enemyShots,b,b.m);
+    if(gone) removeFrom(shots, s, m);
   }
 
   // --- PowerUps ---
   for(let i=pickups.length-1;i>=0;i--){
-    const p=pickups[i], m=p.m;
-    m.position.z += 32*flow*dt; m.rotation.x+=dt*1.3; m.rotation.y+=dt*1.7;
-    if(S.magnet>0 && ship.visible && m.position.z > -120){ tmp.copy(sp0).sub(m.position); m.position.x+=tmp.x*2.5*dt; m.position.y+=tmp.y*2.5*dt; }
+    const p=pickups[i], m=p.m; p.life-=dt;
+    m.rotation.x+=dt*1.3; m.rotation.y+=dt*1.7;
+    const d=m.position.distanceTo(sp0);
+    if(S.magnet>0 && ship.visible && d < 160){ tmp.copy(sp0).sub(m.position).normalize(); m.position.addScaledVector(tmp, (60+S.spd)*dt); }
     if(ship.visible){
-      const d=m.position.distanceTo(sp0);
-      if(shieldOn && d<shieldR+.7){
+      if(shieldOn && d<shieldR+1){
         removeFrom(pickups,p,m);
         if(S.inv>0) explode(m.position.clone(),false); else { banner('Schild + PowerUp!'); loseLife(); }
         continue;
       }
-      if(d<2.6){ collect(p.key); removeFrom(pickups,p,m); continue; }
+      if(d<3.4){ collect(p.key); removeFrom(pickups,p,m); continue; }
     }
-    if(m.position.z>12) removeFrom(pickups,p,m);
+    if(p.life<=0 || d>500) removeFrom(pickups,p,m);
   }
 
   // --- Warp-Tor ---
   if(gate){
-    gate.upd(S.t); gate.m.position.z += 30*flow*dt;
-    const z=gate.m.position.z;
-    if(z > -1 && z < 1.5 && ship.visible && Math.hypot(sp0.x-gate.m.position.x, sp0.y-gate.m.position.y) < 4.2){
+    gate.upd(S.t); gate.life-=dt;
+    if(ship.visible && gate.m.position.distanceTo(sp0) < 6.5){
       addScore(300); S.energy=S.maxEnergy; banner('Warp! +300'); warpFx(2.2); shockwave(gate.m.position.clone(),0x3ee6ff);
-      scene.remove(gate.m); gate=null;
-    } else if(z > 15){ scene.remove(gate.m); gate=null; }
+      scene.remove(gate.m); disposeObj(gate.m); gate=null;
+    } else if(gate.life<=0){ scene.remove(gate.m); disposeObj(gate.m); gate=null; }
   }
 
   // --- Kulisse ---
-  for(let i=decos.length-1;i>=0;i--){ const d=decos[i]; d.m.position.z += 40*flow*dt; if(d.upd) d.upd(S.t); if(d.m.position.z>40) removeFrom(decos,d,d.m); }
+  for(let i=decos.length-1;i>=0;i--){ const d=decos[i]; if(d.upd) d.upd(S.t); if(d.m.position.distanceTo(sp0)>520) removeFrom(decos,d,d.m); }
 
   if(S.energy<=0 && ship.visible) loseLife();
 }
 
 const clock = new T.Clock();
+const camQ = new T.Quaternion(), camOff = V();
 function frame(){
   const dt = Math.min(clock.getDelta(), .05);
   update(dt);
-  const sp = ship.position;
   S.shake = Math.max(0, S.shake-dt);
-  const sh = S.shake*.8;
-  if(S.state==='start'){ // Schiff im Startbildschirm langsam praesentieren
-    ship.rotation.y = Math.sin(S.t*.6)*.5; sp.set(0,2.5,4);
-  } else ship.rotation.y = 0;
-  camera.position.set(sp.x*.55+rnd(-sh,sh), sp.y*.5+6+rnd(-sh,sh), 14);
-  camera.lookAt(sp.x*.7, sp.y*.45+2, -30);
+  if(S.state==='start'){ // Schiff im Startbildschirm praesentieren
+    ship.position.set(0,0,0); ship.rotation.set(.25, S.t*.6, 0); ship.visible = true;
+    camera.position.set(0, 2.5, camDist*.85); camera.lookAt(0,0,0); camQ.copy(camera.quaternion);
+  } else {
+    if(S.camSnap){ camQ.copy(ship.quaternion); S.camSnap=false; }
+    else camQ.slerp(ship.quaternion, 1-Math.exp(-dt*5));
+    camOff.set(0, camDist*.26, camDist + (S.spd - SHIPS[S.shipKey].speed)*.06).applyQuaternion(camQ);
+    camera.position.copy(ship.position).add(camOff);
+    camera.quaternion.copy(camQ);
+    const sh = S.shake*.8; if(sh>0) camera.position.add(randUnit().multiplyScalar(sh));
+  }
+  const tf = (innerWidth<innerHeight?82:68) + (S.boosting?8:0);
+  if(Math.abs(camera.fov-tf)>.05){ camera.fov += (tf-camera.fov)*Math.min(1,dt*4); camera.updateProjectionMatrix(); }
+  sky.position.copy(camera.position);
+  // Staub um das Schiff herum wiederholen
+  const dp = dustGeo.attributes.position.array, c = ship.position;
+  for(let i=0;i<DUST;i++){ for(let k=0;k<3;k++){ const j=i*3+k, o=c.getComponent(k); if(dp[j]-o>70) dp[j]-=140; else if(dp[j]-o<-70) dp[j]+=140; } }
+  dustGeo.attributes.position.needsUpdate = true;
   if(vignetteT>0){ vignetteT-=dt; if(vignetteT<=0) $('vignette').style.opacity=0; }
   if(bannerT>0){ bannerT-=dt; if(bannerT<=0) $('banner').style.opacity=0; }
   updateHud();
+  drawOverlay();
+  drawRadar();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-ship.position.set(0,2,0);
 updateHud();
 frame();
 })();
 </script>
+</body>
+</html>
